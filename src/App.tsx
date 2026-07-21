@@ -5,7 +5,7 @@ import MainSite from './components/MainSite';
 import AdminPanel from './components/AdminPanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { Activity, Heart } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
 import { 
   testFirestoreConnection, 
@@ -42,11 +42,34 @@ export default function App() {
 
     // Set up authentication observer immediately
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      const adminStatus = isUserAdmin(user?.email);
+      let activeUser = user;
+      let isRestoring = false;
+
+      // Auto-restore background Firebase session if logged in via localStorage
+      if (!activeUser && localStorage.getItem('vet_admin_auth') === 'true') {
+        const role = localStorage.getItem('vet_admin_role');
+        const email = role === 'master' ? 'ncodes@drajuliaguaraldo.com' : (role === 'owner' ? 'julia@drajuliaguaraldo.com' : null);
+        const pass = role === 'master' ? 'Taijou13' : (role === 'owner' ? 'Julia123' : null);
+        if (email && pass) {
+          isRestoring = true;
+          try {
+            const credential = await signInWithEmailAndPassword(auth, email, pass);
+            activeUser = credential.user;
+          } catch (err) {
+            console.error("Auto-restore auth failed:", err);
+          } finally {
+            isRestoring = false;
+          }
+        }
+      }
+
+      const adminStatus = isUserAdmin(activeUser?.email);
       setIsAdmin(adminStatus);
 
       // Instantly let the app show the UI state so the user never gets stuck on a splash screen
-      setLoading(false);
+      if (!isRestoring) {
+        setLoading(false);
+      }
 
       if (adminStatus) {
         try {
