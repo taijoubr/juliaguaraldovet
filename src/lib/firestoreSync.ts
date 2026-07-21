@@ -81,6 +81,7 @@ export function isUserAdmin(email: string | null | undefined): boolean {
 // Fetch complete public and private state (conditional on auth)
 export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
   const state: Partial<CMSState> = {};
+  let isSeeded = false;
 
   try {
     // 1. Load Info Settings
@@ -88,6 +89,7 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
     const infoSnap = await getDoc(infoRef);
     if (infoSnap.exists()) {
       state.info = infoSnap.data() as ClinicInfo;
+      isSeeded = true;
     } else {
       state.info = INITIAL_CMS_DATA.info;
     }
@@ -96,57 +98,31 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
     state.info = INITIAL_CMS_DATA.info;
   }
 
-  try {
-    // 2. Load Services
-    const servicesSnap = await getDocs(collection(db, 'services'));
-    const services: Service[] = [];
-    servicesSnap.forEach(docSnap => {
-      services.push(docSnap.data() as Service);
-    });
-    state.services = services.length > 0 ? services : INITIAL_CMS_DATA.services;
-  } catch (e) {
-    console.error('Error loading services from Firestore:', e);
-    state.services = INITIAL_CMS_DATA.services;
-  }
+  // Helper to load collection with fallback ONLY if the database is not seeded
+  const loadCollection = async <T>(collectionName: string, defaultData: T[]): Promise<T[]> => {
+    try {
+      const snap = await getDocs(collection(db, collectionName));
+      const items: T[] = [];
+      snap.forEach(docSnap => {
+        items.push(docSnap.data() as T);
+      });
+      // If database is seeded, we respect the empty array (user deleted all items).
+      // If not seeded, we fall back to initial default data.
+      if (isSeeded) {
+        return items;
+      } else {
+        return items.length > 0 ? items : defaultData;
+      }
+    } catch (e) {
+      console.error(`Error loading ${collectionName} from Firestore:`, e);
+      return defaultData;
+    }
+  };
 
-  try {
-    // 3. Load Media Items
-    const mediaSnap = await getDocs(collection(db, 'media'));
-    const media: MediaItem[] = [];
-    mediaSnap.forEach(docSnap => {
-      media.push(docSnap.data() as MediaItem);
-    });
-    state.media = media.length > 0 ? media : INITIAL_CMS_DATA.media;
-  } catch (e) {
-    console.error('Error loading media from Firestore:', e);
-    state.media = INITIAL_CMS_DATA.media;
-  }
-
-  try {
-    // 4. Load Testimonials
-    const testimonialsSnap = await getDocs(collection(db, 'testimonials'));
-    const testimonials: Testimonial[] = [];
-    testimonialsSnap.forEach(docSnap => {
-      testimonials.push(docSnap.data() as Testimonial);
-    });
-    state.testimonials = testimonials.length > 0 ? testimonials : INITIAL_CMS_DATA.testimonials;
-  } catch (e) {
-    console.error('Error loading testimonials from Firestore:', e);
-    state.testimonials = INITIAL_CMS_DATA.testimonials;
-  }
-
-  try {
-    // 5. Load Blog Posts
-    const blogSnap = await getDocs(collection(db, 'blog'));
-    const blog: BlogPost[] = [];
-    blogSnap.forEach(docSnap => {
-      blog.push(docSnap.data() as BlogPost);
-    });
-    state.blog = blog.length > 0 ? blog : INITIAL_CMS_DATA.blog;
-  } catch (e) {
-    console.error('Error loading blog from Firestore:', e);
-    state.blog = INITIAL_CMS_DATA.blog;
-  }
+  state.services = await loadCollection<Service>('services', INITIAL_CMS_DATA.services);
+  state.media = await loadCollection<MediaItem>('media', INITIAL_CMS_DATA.media);
+  state.testimonials = await loadCollection<Testimonial>('testimonials', INITIAL_CMS_DATA.testimonials);
+  state.blog = await loadCollection<BlogPost>('blog', INITIAL_CMS_DATA.blog);
 
   // 6. Load Appointments (Securely conditional on isAdminUser)
   if (isAdminUser) {

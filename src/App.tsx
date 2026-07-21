@@ -30,11 +30,10 @@ export default function App() {
 
   // Track page views and accesses on boot
   useEffect(() => {
-    // Run connection test and seeding in the background without blocking the main render
+    // Run connection test in the background
     const runBackgroundInit = async () => {
       try {
         await testFirestoreConnection();
-        await seedFirestoreIfEmpty();
       } catch (e) {
         console.error("Failed background initialization:", e);
       }
@@ -48,6 +47,15 @@ export default function App() {
 
       // Instantly let the app show the UI state so the user never gets stuck on a splash screen
       setLoading(false);
+
+      if (adminStatus) {
+        try {
+          // Seed the database only when the authorized admin is authenticated
+          await seedFirestoreIfEmpty();
+        } catch (err) {
+          console.error("Failed to seed Firestore after admin login:", err);
+        }
+      }
 
       try {
         // Load live CMS state from Firestore in background

@@ -42,13 +42,13 @@ service cloud.firestore {
           && data.description is string && data.description.size() <= 1000
           && data.details is string && data.details.size() <= 5000
           && (!data.keys().hasAll(['icon']) || (data.icon is string && data.icon.size() <= 100))
-          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 1000));
+          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 2000000));
     }
 
     function isValidMediaItem(data) {
       return data.id is string && data.id.size() <= 100
           && data.type is string && (data.type == 'photo' || data.type == 'video')
-          && data.url is string && data.url.size() <= 2000
+          && data.url is string && data.url.size() <= 2000000
           && (!data.keys().hasAll(['caption']) || (data.caption is string && data.caption.size() <= 1000))
           && data.category is string && (data.category == 'Procedimentos' || data.category == 'Atendimentos' || data.category == 'Antes e Depois' || data.category == 'Clínica' || data.category == 'Outros')
           && (!data.keys().hasAll(['videoType']) || (data.videoType is string && (data.videoType == 'youtube' || data.videoType == 'instagram' || data.videoType == 'tiktok' || data.videoType == 'local')));
@@ -71,7 +71,7 @@ service cloud.firestore {
           && data.summary is string && data.summary.size() <= 1000
           && data.content is string && data.content.size() <= 50000
           && data.category is string && data.category.size() <= 100
-          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 2000))
+          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 2000000))
           && data.date is string && data.date.size() <= 50
           && (!data.keys().hasAll(['tags']) || data.tags is list)
           && (!data.keys().hasAll(['views']) || data.views is number);
@@ -110,10 +110,10 @@ service cloud.firestore {
           && (!data.keys().hasAll(['heroSubtitle']) || (data.heroSubtitle is string && data.heroSubtitle.size() <= 500))
           && (!data.keys().hasAll(['heroButtonText1']) || (data.heroButtonText1 is string && data.heroButtonText1.size() <= 50))
           && (!data.keys().hasAll(['heroButtonText2']) || (data.heroButtonText2 is string && data.heroButtonText2.size() <= 50))
-          && (!data.keys().hasAll(['heroBgImage']) || (data.heroBgImage is string && data.heroBgImage.size() <= 2000))
+          && (!data.keys().hasAll(['heroBgImage']) || (data.heroBgImage is string && data.heroBgImage.size() <= 2000000))
           && (!data.keys().hasAll(['aboutTitle']) || (data.aboutTitle is string && data.aboutTitle.size() <= 200))
           && (!data.keys().hasAll(['aboutText']) || (data.aboutText is string && data.aboutText.size() <= 5000))
-          && (!data.keys().hasAll(['aboutImage']) || (data.aboutImage is string && data.aboutImage.size() <= 2000))
+          && (!data.keys().hasAll(['aboutImage']) || (data.aboutImage is string && data.aboutImage.size() <= 2000000))
           && (!data.keys().hasAll(['specializations']) || data.specializations is list)
           && (!data.keys().hasAll(['experiences']) || data.experiences is list)
           && (!data.keys().hasAll(['formations']) || data.formations is list)

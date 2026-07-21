@@ -649,7 +649,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             <p className="text-sm text-neutral-500 mt-1">Dra. Júlia Guaraldo — CMS Privado</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-1">
                 Nome de Usuário
@@ -657,9 +657,10 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
               <input 
                 type="text" 
                 required
+                autoComplete="off"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="Digite o usuário"
                 className="w-full border border-neutral-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-vet-light bg-neutral-50"
               />
             </div>
@@ -671,9 +672,10 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
               <input 
                 type="password" 
                 required
+                autoComplete="new-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Digite a senha"
                 className="w-full border border-neutral-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-vet-light bg-neutral-50"
               />
             </div>
