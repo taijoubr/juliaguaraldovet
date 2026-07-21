@@ -244,6 +244,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_auth', 'true');
         localStorage.setItem('vet_admin_role', 'master');
         localStorage.setItem('vet_admin_user', 'NCodes');
+        localStorage.setItem('vet_admin_auth_method', 'password');
         setLoginError('');
         if (!firebaseSuccess) {
           triggerAlert('Painel administrativo iniciado com sucesso!', 'success');
@@ -301,6 +302,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_auth', 'true');
         localStorage.setItem('vet_admin_role', 'owner');
         localStorage.setItem('vet_admin_user', 'Júlia');
+        localStorage.setItem('vet_admin_auth_method', 'password');
         setLoginError('');
         if (!firebaseSuccess) {
           triggerAlert('Bem-vinda, Dra. Júlia! Painel administrativo iniciado com sucesso.', 'success');
@@ -333,6 +335,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
           localStorage.setItem('vet_admin_auth', 'true');
           localStorage.setItem('vet_admin_role', role);
           localStorage.setItem('vet_admin_user', email === 'julia@drajuliaguaraldo.com' ? 'Júlia' : 'NCodes');
+          localStorage.setItem('vet_admin_auth_method', 'google');
           localStorage.removeItem('vet_firebase_auth_error');
           setFirebaseAuthError('');
           
@@ -355,6 +358,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     localStorage.removeItem('vet_admin_auth');
     localStorage.removeItem('vet_admin_role');
     localStorage.removeItem('vet_admin_user');
+    localStorage.removeItem('vet_admin_auth_method');
     localStorage.removeItem('vet_firebase_auth_error');
     setFirebaseAuthError('');
     try {
@@ -1221,7 +1225,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         )}
 
         {/* FIREBASE AUTH WARNING */}
-        {(!firebaseUser || firebaseAuthError) && (
+        {!firebaseUser && (
           <div className="mx-8 mt-6">
             <div className="p-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 shadow-sm space-y-2.5">
               <div className="flex items-center gap-2.5 font-semibold text-sm">
