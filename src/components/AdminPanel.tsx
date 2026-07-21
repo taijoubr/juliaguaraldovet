@@ -9,7 +9,7 @@ import {
   Appointment 
 } from '../types';
 import { auth } from '../firebase';
-import { signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { 
   saveClinicInfo, 
   saveService, 
@@ -130,6 +130,9 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [firebaseAuthError, setFirebaseAuthError] = useState<string>(() => {
+    return localStorage.getItem('vet_firebase_auth_error') || '';
+  });
 
   // Track Firebase Google Auth state
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -141,10 +144,10 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   }, []);
 
   // Determine actual role in the current session
-  const currentRole = (firebaseUser && firebaseUser.email === 'ncodes@drajuliaguaraldo.com') ? 'master' : (firebaseUser && firebaseUser.email === 'julia@drajuliaguaraldo.com' ? 'owner' : adminRole);
+  const currentRole = (firebaseUser && (firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'p.nikolas3@gmail.com')) ? 'master' : (firebaseUser && firebaseUser.email === 'julia@drajuliaguaraldo.com' ? 'owner' : adminRole);
 
   // Combined Auth check (Google Admin or local credential)
-  const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
+  const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com' || firebaseUser.email === 'p.nikolas3@gmail.com')) || isAuthenticated;
 
   // Real Database admin status checking Firebase authenticated email
   const isFirebaseDbAdmin = isCurrentlyAdmin;
@@ -229,6 +232,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
         if (!firebaseSuccess) {
           console.warn('Firebase background auth failed:', firebaseErrorMsg);
+          localStorage.setItem('vet_firebase_auth_error', firebaseErrorMsg);
+          setFirebaseAuthError(firebaseErrorMsg);
+        } else {
+          localStorage.removeItem('vet_firebase_auth_error');
+          setFirebaseAuthError('');
         }
 
         setIsAuthenticated(true);
@@ -281,6 +289,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
         if (!firebaseSuccess) {
           console.warn('Firebase background auth failed:', firebaseErrorMsg);
+          localStorage.setItem('vet_firebase_auth_error', firebaseErrorMsg);
+          setFirebaseAuthError(firebaseErrorMsg);
+        } else {
+          localStorage.removeItem('vet_firebase_auth_error');
+          setFirebaseAuthError('');
         }
 
         setIsAuthenticated(true);
@@ -303,12 +316,47 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     }
   };
 
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      setLoginError('');
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      if (user && user.email) {
+        const email = user.email.toLowerCase();
+        if (email === 'ncodes@drajuliaguaraldo.com' || email === 'julia@drajuliaguaraldo.com' || email === 'p.nikolas3@gmail.com') {
+          // Authorized admin
+          setIsAuthenticated(true);
+          const role = (email === 'ncodes@drajuliaguaraldo.com' || email === 'p.nikolas3@gmail.com') ? 'master' : 'owner';
+          setAdminRole(role);
+          localStorage.setItem('vet_admin_auth', 'true');
+          localStorage.setItem('vet_admin_role', role);
+          localStorage.setItem('vet_admin_user', email === 'julia@drajuliaguaraldo.com' ? 'Júlia' : 'NCodes');
+          localStorage.removeItem('vet_firebase_auth_error');
+          setFirebaseAuthError('');
+          
+          triggerAlert(`Login efetuado com sucesso via Google!`);
+        } else {
+          // Logged in with Google but not an admin!
+          await signOut(auth);
+          setLoginError('Seu e-mail do Google não está cadastrado como administrador.');
+        }
+      }
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setLoginError(`Erro ao fazer login com o Google: ${err.message || String(err)}`);
+    }
+  };
+
   const handleLogout = async () => {
     setIsAuthenticated(false);
     setAdminRole(null);
     localStorage.removeItem('vet_admin_auth');
     localStorage.removeItem('vet_admin_role');
     localStorage.removeItem('vet_admin_user');
+    localStorage.removeItem('vet_firebase_auth_error');
+    setFirebaseAuthError('');
     try {
       await signOut(auth);
     } catch (e) {
@@ -985,6 +1033,29 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             </button>
           </form>
 
+          <div className="relative my-6 text-center">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-neutral-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-neutral-400">Ou use acesso seguro</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-2 border border-neutral-300 hover:bg-neutral-50 text-neutral-700 font-medium rounded-lg py-2.5 transition cursor-pointer shadow-sm hover:shadow"
+          >
+            <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.48 14.97 1 12 1 7.35 1 3.37 3.63 1.34 7.46l3.85 3C6.12 7.42 8.84 5.04 12 5.04z" />
+              <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.87 3.39-8.49z" />
+              <path fill="#FBBC05" d="M5.19 14.54c-.24-.72-.38-1.5-.38-2.3s.14-1.58.38-2.3l-3.85-3C.48 8.44 0 10.16 0 12s.48 3.56 1.34 5.06l3.85-3z" />
+              <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.1.74-2.5 1.17-4.3 1.17-3.16 0-5.88-2.38-6.84-5.42l-3.85 3C3.37 20.37 7.35 23 12 23z" />
+            </svg>
+            Entrar com Google
+          </button>
+
           <div className="mt-8 pt-6 border-t border-neutral-200 flex justify-end items-center text-xs text-neutral-400">
             <button 
               onClick={onClose}
@@ -1145,6 +1216,42 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             <div className={`p-4 rounded-xl flex items-center gap-3 border shadow-sm ${alert.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
               <Check size={18} />
               <span className="text-sm font-medium">{alert.message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* FIREBASE AUTH WARNING */}
+        {(!firebaseUser || firebaseAuthError) && (
+          <div className="mx-8 mt-6">
+            <div className="p-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 shadow-sm space-y-2.5">
+              <div className="flex items-center gap-2.5 font-semibold text-sm">
+                <ShieldAlert size={18} className="text-amber-600 shrink-0" />
+                <span>Alerta de Autenticação Firebase</span>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Você iniciou o painel localmente, mas não está conectado ao Firebase Auth. 
+                Isso impedirá a gravação e sincronização correta de dados com o Firestore.
+              </p>
+              {firebaseAuthError && (
+                <div className="mt-2 text-xs bg-amber-100/50 p-2.5 rounded-lg font-mono text-amber-900 border border-amber-200/50">
+                  <strong>Detalhes do erro Firebase:</strong> {firebaseAuthError}
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.113-5.136 4.113-3.555 0-6.435-2.88-6.435-6.435s2.88-6.435 6.435-6.435c1.593 0 3.038.579 4.166 1.53l3.03-3.03C19.344 2.22 15.98 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c5.786 0 10.613-4.14 10.613-11.24 0-.643-.07-1.285-.213-1.955H12.24z"/>
+                  </svg>
+                  Conectar via Google
+                </button>
+                <div className="text-[11px] text-amber-700">
+                  Dica: O Google Login funciona imediatamente sem precisar configurar provedores adicionais no Firebase Console.
+                </div>
+              </div>
             </div>
           </div>
         )}

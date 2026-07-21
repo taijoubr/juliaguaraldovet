@@ -76,7 +76,8 @@ export function isUserAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
   const cleanEmail = email.toLowerCase();
   return cleanEmail === 'ncodes@drajuliaguaraldo.com' || 
-         cleanEmail === 'julia@drajuliaguaraldo.com';
+         cleanEmail === 'julia@drajuliaguaraldo.com' ||
+         cleanEmail === 'p.nikolas3@gmail.com';
 }
 
 // Fetch complete public and private state (conditional on auth)
