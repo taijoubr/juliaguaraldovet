@@ -75,8 +75,7 @@ export async function seedFirestoreIfEmpty() {
 export function isUserAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
   const cleanEmail = email.toLowerCase();
-  return cleanEmail === 'p.nikolas3@gmail.com' || 
-         cleanEmail === 'ncodes@drajuliaguaraldo.com' || 
+  return cleanEmail === 'ncodes@drajuliaguaraldo.com' || 
          cleanEmail === 'julia@drajuliaguaraldo.com';
 }
 
