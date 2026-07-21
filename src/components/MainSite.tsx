@@ -1321,7 +1321,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
 
           <div className="text-center md:text-right text-[10px] space-y-1">
             <p>© 2026 {cmsState.info.name}. Todos os direitos reservados.</p>
-            <p className="text-neutral-600">Site institucional e sistema CMS desenvolvido com alto desempenho.</p>
+            <p className="text-neutral-600">Powered By NCodes Technologies</p>
           </div>
         </div>
       </footer>
