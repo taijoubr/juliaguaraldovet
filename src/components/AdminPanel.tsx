@@ -339,14 +339,36 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   };
 
 function extractEmbedUrl(input: string): string {
-  const trimmed = input.trim();
-  if (trimmed.startsWith('<iframe') || trimmed.includes('<iframe')) {
-    const srcMatch = trimmed.match(/src=["']?([^"'\s>]+)["']?/i);
+  if (!input) return '';
+  
+  // 1. Unescape HTML entities first in case it's double-encoded (like &amp; to &)
+  let cleaned = input
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+
+  // 2. Remove external curly quotes or quotes at the absolute start/end of the input
+  cleaned = cleaned.trim();
+  cleaned = cleaned.replace(/^[“”"'«»‘’\s]+|[“”"'«»‘’\s]+$/g, '').trim();
+
+  // 3. Extract src from iframe if it's an iframe string
+  if (cleaned.toLowerCase().includes('<iframe')) {
+    // Regex matching src with single, double, curly, or no quotes
+    const srcMatch = cleaned.match(/src=["'“”]?([^"'“”\s>]+)["'“”]?/i);
     if (srcMatch && srcMatch[1]) {
-      return srcMatch[1];
+      cleaned = srcMatch[1];
     }
   }
-  return trimmed;
+
+  // 4. Clean any residual smart quotes and trim
+  cleaned = cleaned.replace(/^[“”"'«»‘’\s]+|[“”"'«»‘’\s]+$/g, '').trim();
+  
+  // Ensure any residual &amp; is fully replaced to &
+  cleaned = cleaned.replace(/&amp;/g, '&');
+  
+  return cleaned;
 }
 
   // 1. Info Save Handler
