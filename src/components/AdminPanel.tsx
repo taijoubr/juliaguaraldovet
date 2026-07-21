@@ -56,6 +56,26 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
+const getErrorMessage = (err: any): string => {
+  if (!err) return 'Erro desconhecido.';
+  const rawMsg = err.message || String(err);
+  try {
+    const parsed = JSON.parse(rawMsg);
+    if (parsed && parsed.error) {
+      if (parsed.error.includes('Missing or insufficient permissions') || parsed.error.includes('permission-denied')) {
+        return 'Permissão negada. Você precisa fazer login com a conta Google de administrador p.nikolas3@gmail.com.';
+      }
+      return parsed.error;
+    }
+  } catch (e) {
+    // Not JSON
+  }
+  if (rawMsg.includes('Missing or insufficient permissions') || rawMsg.includes('permission-denied')) {
+    return 'Permissão negada. Você precisa fazer login com a conta Google de administrador p.nikolas3@gmail.com.';
+  }
+  return rawMsg;
+};
+
 interface AdminPanelProps {
   cmsState: CMSState;
   onUpdateState: (newState: CMSState) => void;
@@ -133,7 +153,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       setLoginError('');
       triggerAlert('Login efetuado com sucesso!');
     } else {
-      setLoginError('Usuário ou senha incorretos. (Dica: admin / julia123)');
+      setLoginError('Usuário ou senha incorretos.');
     }
   };
 
@@ -168,15 +188,20 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   // 1. Info Save Handler
   const handleSaveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
+    const originalInfo = { ...cmsState.info };
     onUpdateState({
       ...cmsState,
       info: infoForm
     });
-    triggerAlert('Configurações gerais atualizadas com sucesso!');
     try {
       await saveClinicInfo(infoForm);
+      triggerAlert('Configurações gerais atualizadas com sucesso!');
     } catch (err) {
-      triggerAlert('Erro ao atualizar configurações no Firestore', 'error');
+      onUpdateState({
+        ...cmsState,
+        info: originalInfo
+      });
+      triggerAlert(`Erro ao atualizar configurações: ${getErrorMessage(err)}`, 'error');
     }
   };
 
@@ -244,12 +269,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     
     if (isCreatingService) {
       updatedServices.push(serviceForm);
-      triggerAlert(`Serviço "${serviceForm.title}" criado com sucesso!`);
     } else {
       updatedServices = updatedServices.map(s => s.id === serviceForm.id ? serviceForm : s);
-      triggerAlert(`Serviço "${serviceForm.title}" atualizado com sucesso!`);
     }
 
+    const originalServices = [...cmsState.services];
     onUpdateState({
       ...cmsState,
       services: updatedServices
@@ -259,22 +283,32 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
     try {
       await saveService(serviceForm);
+      triggerAlert(isCreatingService ? `Serviço "${serviceForm.title}" criado com sucesso!` : `Serviço "${serviceForm.title}" atualizado com sucesso!`);
     } catch (err) {
-      triggerAlert('Erro ao salvar serviço no Firestore', 'error');
+      onUpdateState({
+        ...cmsState,
+        services: originalServices
+      });
+      triggerAlert(`Erro ao salvar serviço: ${getErrorMessage(err)}`, 'error');
     }
   };
 
   const handleDeleteService = async (id: string, title: string) => {
     if (confirm(`Deseja realmente excluir o serviço "${title}"?`)) {
+      const originalServices = [...cmsState.services];
       onUpdateState({
         ...cmsState,
         services: cmsState.services.filter(s => s.id !== id)
       });
-      triggerAlert(`Serviço "${title}" excluído.`);
       try {
         await deleteService(id);
+        triggerAlert(`Serviço "${title}" excluído.`);
       } catch (err) {
-        triggerAlert('Erro ao deletar serviço no Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          services: originalServices
+        });
+        triggerAlert(`Erro ao deletar serviço: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
@@ -322,16 +356,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
           caption: file.name.replace(/\.[^/.]+$/, ""), // file name without extension
           category: uploadCategory
         };
+        const originalMedia = [...cmsState.media];
         onUpdateState({
           ...cmsState,
           media: [newMediaItem, ...cmsState.media]
         });
-        triggerAlert('Imagem enviada e compactada com sucesso!');
 
         try {
           await saveMediaItem(newMediaItem);
+          triggerAlert('Imagem enviada e compactada com sucesso!');
         } catch (err) {
-          triggerAlert('Erro ao salvar imagem no Firestore', 'error');
+          onUpdateState({
+            ...cmsState,
+            media: originalMedia
+          });
+          triggerAlert(`Erro ao salvar imagem: ${getErrorMessage(err)}`, 'error');
         }
       }
     };
@@ -370,6 +409,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       videoType
     };
 
+    const originalMedia = [...cmsState.media];
     onUpdateState({
       ...cmsState,
       media: [newVideoItem, ...cmsState.media]
@@ -377,26 +417,35 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
     setVideoUrlInput('');
     setVideoCaption('');
-    triggerAlert('Mídia de vídeo vinculada com sucesso!');
 
     try {
       await saveMediaItem(newVideoItem);
+      triggerAlert('Mídia de vídeo vinculada com sucesso!');
     } catch (err) {
-      triggerAlert('Erro ao salvar vídeo no Firestore', 'error');
+      onUpdateState({
+        ...cmsState,
+        media: originalMedia
+      });
+      triggerAlert(`Erro ao salvar vídeo: ${getErrorMessage(err)}`, 'error');
     }
   };
 
   const handleDeleteMedia = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir esta mídia?')) {
+      const originalMedia = [...cmsState.media];
       onUpdateState({
         ...cmsState,
         media: cmsState.media.filter(m => m.id !== id)
       });
-      triggerAlert('Mídia removida com sucesso.');
       try {
         await deleteMediaItem(id);
+        triggerAlert('Mídia removida com sucesso.');
       } catch (err) {
-        triggerAlert('Erro ao excluir mídia do Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          media: originalMedia
+        });
+        triggerAlert(`Erro ao excluir mídia: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
@@ -406,13 +455,12 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     let updatedItem: Testimonial | null = null;
     const updated = cmsState.testimonials.map(t => {
       if (t.id === id) {
-        const nextState = !t.approved;
-        triggerAlert(nextState ? 'Depoimento aprovado e publicado!' : 'Depoimento ocultado do público.');
-        updatedItem = { ...t, approved: nextState };
+        updatedItem = { ...t, approved: !t.approved };
         return updatedItem;
       }
       return t;
     });
+    const originalTestimonials = [...cmsState.testimonials];
     onUpdateState({
       ...cmsState,
       testimonials: updated
@@ -421,23 +469,33 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     if (updatedItem) {
       try {
         await saveTestimonial(updatedItem);
+        triggerAlert(updatedItem.approved ? 'Depoimento aprovado e publicado!' : 'Depoimento ocultado do público.');
       } catch (err) {
-        triggerAlert('Erro ao atualizar depoimento no Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          testimonials: originalTestimonials
+        });
+        triggerAlert(`Erro ao atualizar depoimento: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
 
   const handleDeleteTestimonial = async (id: string) => {
     if (confirm('Excluir este depoimento permanentemente?')) {
+      const originalTestimonials = [...cmsState.testimonials];
       onUpdateState({
         ...cmsState,
         testimonials: cmsState.testimonials.filter(t => t.id !== id)
       });
-      triggerAlert('Depoimento excluído.');
       try {
         await deleteTestimonial(id);
+        triggerAlert('Depoimento excluído.');
       } catch (err) {
-        triggerAlert('Erro ao excluir depoimento do Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          testimonials: originalTestimonials
+        });
+        triggerAlert(`Erro ao excluir depoimento: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
@@ -475,12 +533,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     let updatedBlog = [...cmsState.blog];
     if (isCreatingPost) {
       updatedBlog.push(finalForm);
-      triggerAlert(`Postagem "${finalForm.title}" publicada com sucesso!`);
     } else {
       updatedBlog = updatedBlog.map(p => p.id === finalForm.id ? finalForm : p);
-      triggerAlert(`Postagem "${finalForm.title}" atualizada com sucesso!`);
     }
 
+    const originalBlog = [...cmsState.blog];
     onUpdateState({
       ...cmsState,
       blog: updatedBlog
@@ -490,22 +547,32 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
     try {
       await saveBlogPost(finalForm);
+      triggerAlert(isCreatingPost ? `Postagem "${finalForm.title}" publicada com sucesso!` : `Postagem "${finalForm.title}" atualizada com sucesso!`);
     } catch (err) {
-      triggerAlert('Erro ao salvar artigo no Firestore', 'error');
+      onUpdateState({
+        ...cmsState,
+        blog: originalBlog
+      });
+      triggerAlert(`Erro ao salvar artigo: ${getErrorMessage(err)}`, 'error');
     }
   };
 
   const handleDeletePost = async (id: string, title: string) => {
     if (confirm(`Deseja realmente excluir o artigo "${title}"?`)) {
+      const originalBlog = [...cmsState.blog];
       onUpdateState({
         ...cmsState,
         blog: cmsState.blog.filter(p => p.id !== id)
       });
-      triggerAlert(`Artigo "${title}" excluído.`);
       try {
         await deleteBlogPost(id);
+        triggerAlert(`Artigo "${title}" excluído.`);
       } catch (err) {
-        triggerAlert('Erro ao excluir artigo do Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          blog: originalBlog
+        });
+        triggerAlert(`Erro ao excluir artigo: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
@@ -520,32 +587,42 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       }
       return a;
     });
+    const originalAppointments = [...cmsState.appointments];
     onUpdateState({
       ...cmsState,
       appointments: updated
     });
-    triggerAlert(`Status do agendamento atualizado para: ${newStatus}`);
 
     if (updatedAppt) {
       try {
         await saveAppointment(updatedAppt);
+        triggerAlert(`Status do agendamento atualizado para: ${newStatus}`);
       } catch (err) {
-        triggerAlert('Erro ao atualizar agendamento no Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          appointments: originalAppointments
+        });
+        triggerAlert(`Erro ao atualizar agendamento: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
 
   const handleDeleteAppointment = async (id: string) => {
     if (confirm('Remover registro de agendamento permanentemente?')) {
+      const originalAppointments = [...cmsState.appointments];
       onUpdateState({
         ...cmsState,
         appointments: cmsState.appointments.filter(a => a.id !== id)
       });
-      triggerAlert('Agendamento removido.');
       try {
         await deleteAppointment(id);
+        triggerAlert('Agendamento removido.');
       } catch (err) {
-        triggerAlert('Erro ao remover agendamento do Firestore', 'error');
+        onUpdateState({
+          ...cmsState,
+          appointments: originalAppointments
+        });
+        triggerAlert(`Erro ao remover agendamento: ${getErrorMessage(err)}`, 'error');
       }
     }
   };
@@ -636,8 +713,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             Entrar com Google
           </button>
 
-          <div className="mt-8 pt-6 border-t border-neutral-200 flex justify-between items-center text-xs text-neutral-400">
-            <span>Dica de login: admin / julia123</span>
+          <div className="mt-8 pt-6 border-t border-neutral-200 flex justify-end items-center text-xs text-neutral-400">
             <button 
               onClick={onClose}
               className="text-vet-dark font-medium hover:underline cursor-pointer"
