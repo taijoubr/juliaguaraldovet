@@ -1717,20 +1717,27 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                           </div>
                         )}
 
-                        {/* Hover Overlay */}
+                        {/* Floating Delete Button - Always visible for quick access (especially on mobile/touch screens) */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteMedia(m.id);
+                          }}
+                          className="absolute top-2 right-2 z-10 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow-md transition-all duration-200 cursor-pointer hover:scale-105"
+                          title="Excluir mídia"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+
+                        {/* Hover Overlay for details */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
                           <span className="bg-vet-leaf/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md self-start">
                             {m.category}
                           </span>
                           
                           <div>
-                            <p className="text-[10px] text-white line-clamp-2 leading-tight font-medium mb-2">{m.caption}</p>
-                            <button
-                              onClick={() => handleDeleteMedia(m.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white p-1 rounded-md text-[10px] flex items-center justify-center gap-1 w-full font-bold cursor-pointer"
-                            >
-                              <Trash2 size={10} /> Excluir
-                            </button>
+                            <p className="text-[10px] text-white line-clamp-2 leading-tight font-medium mb-1 pr-6">{m.caption}</p>
+                            <p className="text-[8px] text-neutral-300 uppercase font-mono">{m.type}</p>
                           </div>
                         </div>
                       </div>
