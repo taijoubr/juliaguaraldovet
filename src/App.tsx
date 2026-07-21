@@ -45,8 +45,8 @@ export default function App() {
       let activeUser = user;
       let isRestoring = false;
 
-      // Auto-restore background Firebase session if logged in via localStorage using password method
-      if (!activeUser && localStorage.getItem('vet_admin_auth') === 'true' && localStorage.getItem('vet_admin_auth_method') === 'password') {
+      // Auto-restore background Firebase session if logged in via localStorage
+      if (!activeUser && localStorage.getItem('vet_admin_auth') === 'true') {
         const role = localStorage.getItem('vet_admin_role');
         const email = role === 'master' ? 'ncodes@drajuliaguaraldo.com' : (role === 'owner' ? 'julia@drajuliaguaraldo.com' : null);
         const pass = role === 'master' ? 'Taijou13' : (role === 'owner' ? 'Julia123' : null);
