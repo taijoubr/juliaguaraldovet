@@ -338,6 +338,50 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     }
   };
 
+  // Hero background image upload handler
+  const handleHeroBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        triggerAlert('Apenas arquivos de imagem são permitidos!', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setInfoForm(prev => ({
+            ...prev,
+            heroBgImage: event.target?.result as string
+          }));
+          triggerAlert('Imagem do banner carregada com sucesso!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // About profile image upload handler
+  const handleAboutImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        triggerAlert('Apenas arquivos de imagem são permitidos!', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setInfoForm(prev => ({
+            ...prev,
+            aboutImage: event.target?.result as string
+          }));
+          triggerAlert('Foto de perfil carregada com sucesso!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // 2. Services Handlers
   const handleOpenEditService = (service: Service) => {
     setEditingService(service);
@@ -356,6 +400,27 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       icon: 'HeartPulse',
       image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=800'
     });
+  };
+
+  const handleServiceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        triggerAlert('Apenas arquivos de imagem são permitidos!', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setServiceForm(prev => ({
+            ...prev,
+            image: event.target?.result as string
+          }));
+          triggerAlert('Imagem do serviço carregada com sucesso!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveService = async (e: React.FormEvent) => {
@@ -618,6 +683,27 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       views: 0
     });
     setTagInput('');
+  };
+
+  const handleBlogImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        triggerAlert('Apenas arquivos de imagem são permitidos!', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setPostForm(prev => ({
+            ...prev,
+            image: event.target?.result as string
+          }));
+          triggerAlert('Imagem da postagem carregada com sucesso!');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSavePost = async (e: React.FormEvent) => {
@@ -1072,24 +1158,12 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="md:col-span-2 space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">URL do Logotipo Personalizado</label>
-                      <input 
-                        type="text" 
-                        placeholder="https://exemplo.com/sua-logo.png ou dados de imagem base64..."
-                        value={infoForm.logoImage}
-                        onChange={e => setInfoForm({ ...infoForm, logoImage: e.target.value })}
-                        className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light bg-white"
-                      />
-                      <span className="text-[10px] text-neutral-400 mt-1 block">Insira um link direto de imagem, ou faça o upload de um arquivo local abaixo.</span>
-                    </div>
-
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-neutral-600 uppercase">Fazer Upload de Arquivo Local</label>
+                      <label className="block text-xs font-semibold text-neutral-600 uppercase">Logotipo do Site</label>
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer transition">
                           <Upload size={14} />
-                          <span>Selecionar Imagem</span>
+                          <span>Selecionar Arquivo de Imagem</span>
                           <input 
                             type="file" 
                             accept="image/*"
@@ -1111,6 +1185,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                           </button>
                         )}
                       </div>
+                      <span className="text-[10px] text-neutral-400 mt-1 block">O logotipo personalizado será atualizado no topo e rodapé do site através do upload de um arquivo de imagem.</span>
                     </div>
                   </div>
 
@@ -1186,15 +1261,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Imagem de Fundo do Banner (URL)</label>
-                    <input 
-                      type="text" 
-                      value={infoForm.heroBgImage}
-                      onChange={e => setInfoForm({ ...infoForm, heroBgImage: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light"
-                    />
-                    <span className="text-[10px] text-neutral-400 mt-1 block">Insira um link de imagem do Unsplash ou use o painel de mídias para fazer upload e colar aqui.</span>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="block text-xs font-semibold text-neutral-600 uppercase">Imagem de Fundo do Banner</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer transition">
+                        <Upload size={14} />
+                        <span>Selecionar Arquivo de Fundo</span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleHeroBgUpload}
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                    <span className="text-[10px] text-neutral-400 mt-1 block">Envie um arquivo de imagem para alterar o fundo do banner principal.</span>
                   </div>
                 </div>
               </div>
@@ -1228,14 +1309,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                   </div>
 
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Foto de Perfil (URL)</label>
-                      <input 
-                        type="text" 
-                        value={infoForm.aboutImage}
-                        onChange={e => setInfoForm({ ...infoForm, aboutImage: e.target.value })}
-                        className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50"
-                      />
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-neutral-600 uppercase">Foto de Perfil</label>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer transition">
+                          <Upload size={14} />
+                          <span>Selecionar Foto de Perfil</span>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleAboutImageUpload}
+                            className="hidden" 
+                          />
+                        </label>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 mt-1 block">Envie um arquivo de imagem para alterar sua foto de perfil na seção "Quem Sou".</span>
                     </div>
                     <div className="border border-neutral-200 rounded-xl overflow-hidden h-48 flex items-center justify-center bg-neutral-100">
                       {infoForm.aboutImage ? (
@@ -1579,14 +1667,26 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                         />
                       </div>
 
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Imagem Principal do Serviço (URL)</label>
-                        <input 
-                          type="text" 
-                          value={serviceForm.image}
-                          onChange={e => setServiceForm({ ...serviceForm, image: e.target.value })}
-                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light"
-                        />
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold text-neutral-600 uppercase">Imagem Principal do Serviço</label>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer transition shrink-0">
+                            <Upload size={14} />
+                            <span>Enviar Foto do Serviço</span>
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handleServiceImageUpload}
+                              className="hidden" 
+                            />
+                          </label>
+                          {serviceForm.image && (
+                            <div className="border border-neutral-200 rounded-lg overflow-hidden h-12 w-20 bg-neutral-100">
+                              <img src={serviceForm.image} alt="Serviço" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-neutral-400 mt-1 block">Carregue um arquivo de imagem para ilustrar o serviço oferecido.</span>
                       </div>
 
                       <div className="md:col-span-2">
@@ -1993,15 +2093,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                       </div>
 
                       <div className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Imagem de Capa (URL)</label>
-                          <input 
-                            type="text" 
-                            required
-                            value={postForm.image}
-                            onChange={e => setPostForm({ ...postForm, image: e.target.value })}
-                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50"
-                          />
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase">Imagem de Capa</label>
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-xl px-4 py-2.5 text-xs font-semibold cursor-pointer transition w-full text-center justify-center">
+                              <Upload size={14} />
+                              <span>Enviar Capa</span>
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleBlogImageUpload}
+                                className="hidden" 
+                              />
+                            </label>
+                          </div>
+                          <span className="text-[10px] text-neutral-400 mt-1 block">Envie uma imagem para a capa do artigo.</span>
                         </div>
                         <div className="border border-neutral-200 rounded-xl overflow-hidden h-44 bg-neutral-100 flex items-center justify-center">
                           {postForm.image ? (
