@@ -74,8 +74,10 @@ export async function seedFirestoreIfEmpty() {
 // Function to check if the current user is an authorized admin
 export function isUserAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
-  // Bootstrapped Admin check from runtime metadata
-  return email === 'p.nikolas3@gmail.com';
+  const cleanEmail = email.toLowerCase();
+  return cleanEmail === 'p.nikolas3@gmail.com' || 
+         cleanEmail === 'ncodes@drajuliaguaraldo.com' || 
+         cleanEmail === 'julia@drajuliaguaraldo.com';
 }
 
 // Fetch complete public and private state (conditional on auth)

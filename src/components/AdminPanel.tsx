@@ -9,7 +9,7 @@ import {
   Appointment 
 } from '../types';
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   saveClinicInfo, 
   saveService, 
@@ -63,7 +63,7 @@ const getErrorMessage = (err: any): string => {
     const parsed = JSON.parse(rawMsg);
     if (parsed && parsed.error) {
       if (parsed.error.includes('Missing or insufficient permissions') || parsed.error.includes('permission-denied')) {
-        return 'Permissão negada. Você precisa fazer login com a conta Google de administrador p.nikolas3@gmail.com.';
+        return 'Permissão negada. Você precisa fazer login com uma conta de administrador autorizada (como NCodes ou Dra. Júlia).';
       }
       return parsed.error;
     }
@@ -71,7 +71,7 @@ const getErrorMessage = (err: any): string => {
     // Not JSON
   }
   if (rawMsg.includes('Missing or insufficient permissions') || rawMsg.includes('permission-denied')) {
-    return 'Permissão negada. Você precisa fazer login com a conta Google de administrador p.nikolas3@gmail.com.';
+    return 'Permissão negada. Você precisa fazer login com uma conta de administrador autorizada (como NCodes ou Dra. Júlia).';
   }
   return rawMsg;
 };
@@ -104,10 +104,10 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   }, []);
 
   // Determine actual role in the current session
-  const currentRole = (firebaseUser && firebaseUser.email === 'p.nikolas3@gmail.com') ? 'master' : adminRole;
+  const currentRole = (firebaseUser && (firebaseUser.email === 'p.nikolas3@gmail.com' || firebaseUser.email === 'ncodes@drajuliaguaraldo.com')) ? 'master' : (firebaseUser && firebaseUser.email === 'julia@drajuliaguaraldo.com' ? 'owner' : adminRole);
 
   // Combined Auth check (Google Admin or local credential)
-  const isCurrentlyAdmin = (firebaseUser && firebaseUser.email === 'p.nikolas3@gmail.com') || isAuthenticated;
+  const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'p.nikolas3@gmail.com' || firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
 
   // Menu/Tab State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'info' | 'services' | 'media' | 'testimonials' | 'blog' | 'appointments'>('dashboard');
@@ -151,29 +151,69 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   };
 
   // Auth Handler
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUser = username.trim();
     
     // Check for NCodes (Master Programmer)
     if (cleanUser.toLowerCase() === 'ncodes' && password === 'Taijou13') {
-      setIsAuthenticated(true);
-      setAdminRole('master');
-      localStorage.setItem('vet_admin_auth', 'true');
-      localStorage.setItem('vet_admin_role', 'master');
-      localStorage.setItem('vet_admin_user', 'NCodes');
-      setLoginError('');
-      triggerAlert('Login efetuado com sucesso como Master (Programador)!');
+      try {
+        const email = 'ncodes@drajuliaguaraldo.com';
+        const pass = 'Taijou13';
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            try {
+              await createUserWithEmailAndPassword(auth, email, pass);
+            } catch (createErr) {
+              console.error('Failed to create background auth user:', createErr);
+            }
+          } else {
+            console.error('Failed to login background auth user:', err);
+          }
+        }
+        setIsAuthenticated(true);
+        setAdminRole('master');
+        localStorage.setItem('vet_admin_auth', 'true');
+        localStorage.setItem('vet_admin_role', 'master');
+        localStorage.setItem('vet_admin_user', 'NCodes');
+        setLoginError('');
+        triggerAlert('Login efetuado com sucesso como Master (Programador)!');
+      } catch (err: any) {
+        console.error('Auth error:', err);
+        setLoginError('Erro de autenticação no banco de dados.');
+      }
     } 
     // Check for Júlia (Dona / Proprietária)
     else if ((cleanUser.toLowerCase() === 'júlia' || cleanUser.toLowerCase() === 'julia') && password === 'Julia123') {
-      setIsAuthenticated(true);
-      setAdminRole('owner');
-      localStorage.setItem('vet_admin_auth', 'true');
-      localStorage.setItem('vet_admin_role', 'owner');
-      localStorage.setItem('vet_admin_user', 'Júlia');
-      setLoginError('');
-      triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
+      try {
+        const email = 'julia@drajuliaguaraldo.com';
+        const pass = 'Julia123';
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            try {
+              await createUserWithEmailAndPassword(auth, email, pass);
+            } catch (createErr) {
+              console.error('Failed to create background auth user:', createErr);
+            }
+          } else {
+            console.error('Failed to login background auth user:', err);
+          }
+        }
+        setIsAuthenticated(true);
+        setAdminRole('owner');
+        localStorage.setItem('vet_admin_auth', 'true');
+        localStorage.setItem('vet_admin_role', 'owner');
+        localStorage.setItem('vet_admin_user', 'Júlia');
+        setLoginError('');
+        triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
+      } catch (err: any) {
+        console.error('Auth error:', err);
+        setLoginError('Erro de autenticação no banco de dados.');
+      }
     } else {
       setLoginError('Usuário ou senha incorretos.');
     }

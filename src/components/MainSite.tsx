@@ -407,8 +407,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
                 </div>
 
                 <div className="pt-6 font-semibold text-[10px] text-neutral-400 uppercase tracking-widest flex items-center gap-6">
-                  <span>CRM-SP 21045</span>
-                  <span>★ ★ ★ ★ ★ (5.0)</span>
+                  <span>CRMV 49525</span>
                 </div>
               </motion.div>
             </div>
