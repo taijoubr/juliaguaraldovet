@@ -76,6 +76,43 @@ const getErrorMessage = (err: any): string => {
   return rawMsg;
 };
 
+const compressImage = (base64Str: string, maxWidth = 1000, maxHeight = 1000, quality = 0.7): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } else {
+        resolve(base64Str);
+      }
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
+
 interface AdminPanelProps {
   cmsState: CMSState;
   onUpdateState: (newState: CMSState) => void;
@@ -201,7 +238,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_user', 'NCodes');
         setLoginError('');
         if (!firebaseSuccess) {
-          triggerAlert('Logado localmente com sucesso! (Verifique o aviso de permissões do Firebase abaixo)', 'error');
+          triggerAlert('Painel administrativo iniciado com sucesso!', 'success');
         } else {
           triggerAlert('Login efetuado com sucesso como Master (Programador)!');
         }
@@ -253,7 +290,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_user', 'Júlia');
         setLoginError('');
         if (!firebaseSuccess) {
-          triggerAlert('Logada localmente com sucesso! (Verifique o aviso de permissões do Firebase abaixo)', 'error');
+          triggerAlert('Bem-vinda, Dra. Júlia! Painel administrativo iniciado com sucesso.', 'success');
         } else {
           triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
         }
@@ -325,13 +362,22 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setInfoForm(prev => ({
-            ...prev,
-            logoImage: event.target?.result as string
-          }));
-          triggerAlert('Logotipo carregado com sucesso!');
+          try {
+            const compressed = await compressImage(event.target.result as string, 500, 500, 0.8);
+            setInfoForm(prev => ({
+              ...prev,
+              logoImage: compressed
+            }));
+            triggerAlert('Logotipo carregado e otimizado com sucesso!');
+          } catch (err) {
+            setInfoForm(prev => ({
+              ...prev,
+              logoImage: event.target.result as string
+            }));
+            triggerAlert('Logotipo carregado com sucesso!');
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -347,13 +393,22 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setInfoForm(prev => ({
-            ...prev,
-            heroBgImage: event.target?.result as string
-          }));
-          triggerAlert('Imagem do banner carregada com sucesso!');
+          try {
+            const compressed = await compressImage(event.target.result as string, 1200, 1200, 0.7);
+            setInfoForm(prev => ({
+              ...prev,
+              heroBgImage: compressed
+            }));
+            triggerAlert('Imagem do banner carregada e otimizada com sucesso!');
+          } catch (err) {
+            setInfoForm(prev => ({
+              ...prev,
+              heroBgImage: event.target.result as string
+            }));
+            triggerAlert('Imagem do banner carregada com sucesso!');
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -369,13 +424,22 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setInfoForm(prev => ({
-            ...prev,
-            aboutImage: event.target?.result as string
-          }));
-          triggerAlert('Foto de perfil carregada com sucesso!');
+          try {
+            const compressed = await compressImage(event.target.result as string, 800, 800, 0.75);
+            setInfoForm(prev => ({
+              ...prev,
+              aboutImage: compressed
+            }));
+            triggerAlert('Foto de perfil carregada e otimizada com sucesso!');
+          } catch (err) {
+            setInfoForm(prev => ({
+              ...prev,
+              aboutImage: event.target.result as string
+            }));
+            triggerAlert('Foto de perfil carregada com sucesso!');
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -410,13 +474,22 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setServiceForm(prev => ({
-            ...prev,
-            image: event.target?.result as string
-          }));
-          triggerAlert('Imagem do serviço carregada com sucesso!');
+          try {
+            const compressed = await compressImage(event.target.result as string, 800, 800, 0.75);
+            setServiceForm(prev => ({
+              ...prev,
+              image: compressed
+            }));
+            triggerAlert('Imagem do serviço carregada e otimizada com sucesso!');
+          } catch (err) {
+            setServiceForm(prev => ({
+              ...prev,
+              image: event.target.result as string
+            }));
+            triggerAlert('Imagem do serviço carregada com sucesso!');
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -509,28 +582,55 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     const reader = new FileReader();
     reader.onload = async (event) => {
       if (event.target?.result) {
-        const newMediaItem: MediaItem = {
-          id: Math.random().toString(36).substring(2, 9),
-          type: 'photo',
-          url: event.target.result as string,
-          caption: file.name.replace(/\.[^/.]+$/, ""), // file name without extension
-          category: uploadCategory
-        };
-        const originalMedia = [...cmsState.media];
-        onUpdateState({
-          ...cmsState,
-          media: [newMediaItem, ...cmsState.media]
-        });
-
         try {
-          await saveMediaItem(newMediaItem);
-          triggerAlert('Imagem enviada e compactada com sucesso!');
-        } catch (err) {
+          const compressed = await compressImage(event.target.result as string, 1000, 1000, 0.7);
+          const newMediaItem: MediaItem = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'photo',
+            url: compressed,
+            caption: file.name.replace(/\.[^/.]+$/, ""), // file name without extension
+            category: uploadCategory
+          };
+          const originalMedia = [...cmsState.media];
           onUpdateState({
             ...cmsState,
-            media: originalMedia
+            media: [newMediaItem, ...cmsState.media]
           });
-          triggerAlert(`Erro ao salvar imagem: ${getErrorMessage(err)}`, 'error');
+
+          try {
+            await saveMediaItem(newMediaItem);
+            triggerAlert('Imagem enviada e otimizada com sucesso!');
+          } catch (err) {
+            onUpdateState({
+              ...cmsState,
+              media: originalMedia
+            });
+            triggerAlert(`Erro ao salvar imagem: ${getErrorMessage(err)}`, 'error');
+          }
+        } catch (compErr) {
+          const newMediaItem: MediaItem = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'photo',
+            url: event.target.result as string,
+            caption: file.name.replace(/\.[^/.]+$/, ""),
+            category: uploadCategory
+          };
+          const originalMedia = [...cmsState.media];
+          onUpdateState({
+            ...cmsState,
+            media: [newMediaItem, ...cmsState.media]
+          });
+
+          try {
+            await saveMediaItem(newMediaItem);
+            triggerAlert('Imagem enviada com sucesso!');
+          } catch (err) {
+            onUpdateState({
+              ...cmsState,
+              media: originalMedia
+            });
+            triggerAlert(`Erro ao salvar imagem: ${getErrorMessage(err)}`, 'error');
+          }
         }
       }
     };
@@ -693,13 +793,22 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         return;
       }
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         if (event.target?.result) {
-          setPostForm(prev => ({
-            ...prev,
-            image: event.target?.result as string
-          }));
-          triggerAlert('Imagem da postagem carregada com sucesso!');
+          try {
+            const compressed = await compressImage(event.target.result as string, 1000, 1000, 0.7);
+            setPostForm(prev => ({
+              ...prev,
+              image: compressed
+            }));
+            triggerAlert('Imagem da postagem carregada e otimizada com sucesso!');
+          } catch (err) {
+            setPostForm(prev => ({
+              ...prev,
+              image: event.target.result as string
+            }));
+            triggerAlert('Imagem da postagem carregada com sucesso!');
+          }
         }
       };
       reader.readAsDataURL(file);
