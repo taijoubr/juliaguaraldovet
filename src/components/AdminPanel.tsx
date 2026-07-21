@@ -957,29 +957,6 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
           </div>
         )}
 
-        {/* FIREBASE AUTH DISCONNECTED WARNING */}
-        {!isFirebaseDbAdmin && (
-          <div className="mx-8 mt-6">
-            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs space-y-3">
-              <div className="flex items-center gap-2.5 font-bold text-amber-800 text-sm">
-                <ShieldAlert size={20} className="text-amber-600 animate-pulse shrink-0" />
-                <span>Modo de Somente-Leitura Ativo (Sem Conexão de Autenticação com o Firebase)</span>
-              </div>
-              <p className="text-xs leading-relaxed text-amber-800">
-                O painel administrativo local está ativo, mas a sua sessão <strong>não possui autenticação direta com as permissões de gravação do banco de dados (Firebase)</strong>.
-                Por motivos de segurança das Regras de Segurança do Firestore, <strong>as operações de exclusão de mídias/depoimentos e modificação de dados serão rejeitadas</strong>.
-              </p>
-              <div className="text-xs bg-white/50 p-3.5 rounded-xl border border-amber-200/50 space-y-2">
-                <span className="block font-bold text-amber-950">Como resolver e liberar as ações de exclusão e edição no banco de dados:</span>
-                <p className="text-amber-900 leading-relaxed">
-                  Acesse o seu <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 hover:text-amber-800">Console do Firebase</a>, vá em 
-                  <strong className="text-amber-950"> Authentication &gt; Sign-in method</strong>, clique em <strong className="text-amber-950">Adicionar Provedor</strong>, selecione <strong className="text-amber-950">E-mail/Senha</strong> e ative-o. Uma vez ativado, os logins de administrador (ncodes@drajuliaguaraldo.com ou julia@drajuliaguaraldo.com) farão a autenticação correta no banco automaticamente!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="px-8 mt-6 flex-1">
           
           {/* ======================================================== */}
@@ -987,6 +964,26 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
           {/* ======================================================== */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
+              {/* FIREBASE AUTH DISCONNECTED WARNING */}
+              {!isFirebaseDbAdmin && (
+                <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2.5 font-bold text-amber-800 text-sm">
+                    <ShieldAlert size={20} className="text-amber-600 animate-pulse shrink-0" />
+                    <span>Aviso Importante: Modo de Somente-Leitura Ativo</span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-amber-800">
+                    O painel administrativo local está ativo, mas o provedor de login por <strong>E-mail/Senha</strong> do Firebase está desativado no seu console. 
+                    Isso impede a gravação e exclusão direta no banco de dados.
+                  </p>
+                  <div className="text-xs bg-white/50 p-3.5 rounded-xl border border-amber-200/50 space-y-2">
+                    <span className="block font-bold text-amber-950">Como ativar a gravação/exclusão de dados:</span>
+                    <p className="text-amber-900 leading-relaxed text-base-sm">
+                      Acesse seu <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 hover:text-amber-800">Console do Firebase</a>, vá em 
+                      <strong className="text-amber-950"> Authentication &gt; Sign-in method</strong>, clique em <strong className="text-amber-950">Adicionar Provedor</strong>, selecione <strong className="text-amber-950">E-mail/Senha</strong> e ative-o. Uma vez ativado, a sincronização de gravação funcionará perfeitamente!
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Analytics grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm">
