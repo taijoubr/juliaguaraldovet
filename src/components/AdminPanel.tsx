@@ -87,6 +87,9 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('vet_admin_auth') === 'true';
   });
+  const [adminRole, setAdminRole] = useState<'master' | 'owner' | null>(() => {
+    return localStorage.getItem('vet_admin_role') as 'master' | 'owner' | null;
+  });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -99,6 +102,9 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     });
     return () => unsub();
   }, []);
+
+  // Determine actual role in the current session
+  const currentRole = (firebaseUser && firebaseUser.email === 'p.nikolas3@gmail.com') ? 'master' : adminRole;
 
   // Combined Auth check (Google Admin or local credential)
   const isCurrentlyAdmin = (firebaseUser && firebaseUser.email === 'p.nikolas3@gmail.com') || isAuthenticated;
@@ -147,11 +153,27 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   // Auth Handler
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() === 'admin' && password === 'julia123') {
+    const cleanUser = username.trim();
+    
+    // Check for NCodes (Master Programmer)
+    if (cleanUser.toLowerCase() === 'ncodes' && password === 'Taijou13') {
       setIsAuthenticated(true);
+      setAdminRole('master');
       localStorage.setItem('vet_admin_auth', 'true');
+      localStorage.setItem('vet_admin_role', 'master');
+      localStorage.setItem('vet_admin_user', 'NCodes');
       setLoginError('');
-      triggerAlert('Login efetuado com sucesso!');
+      triggerAlert('Login efetuado com sucesso como Master (Programador)!');
+    } 
+    // Check for Júlia (Dona / Proprietária)
+    else if ((cleanUser.toLowerCase() === 'júlia' || cleanUser.toLowerCase() === 'julia') && password === 'Julia123') {
+      setIsAuthenticated(true);
+      setAdminRole('owner');
+      localStorage.setItem('vet_admin_auth', 'true');
+      localStorage.setItem('vet_admin_role', 'owner');
+      localStorage.setItem('vet_admin_user', 'Júlia');
+      setLoginError('');
+      triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
     } else {
       setLoginError('Usuário ou senha incorretos.');
     }
@@ -163,6 +185,8 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       if (user.email === 'p.nikolas3@gmail.com') {
+        setAdminRole('master');
+        localStorage.setItem('vet_admin_role', 'master');
         triggerAlert('Login efetuado via Google!');
       } else {
         await signOut(auth);
@@ -176,7 +200,10 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
   const handleLogout = async () => {
     setIsAuthenticated(false);
+    setAdminRole(null);
     localStorage.removeItem('vet_admin_auth');
+    localStorage.removeItem('vet_admin_role');
+    localStorage.removeItem('vet_admin_user');
     try {
       await signOut(auth);
     } catch (e) {
@@ -736,7 +763,15 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-lg text-neutral-800 font-display">Painel CMS</h2>
-            <p className="text-xs text-neutral-400">Dra. Júlia Guaraldo</p>
+            {currentRole === 'master' ? (
+              <p className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                <Shield size={12} className="inline" /> NCodes (Master)
+              </p>
+            ) : (
+              <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                <Sparkles size={12} className="inline" /> Dra. Júlia (Dona)
+              </p>
+            )}
           </div>
           <button 
             onClick={onClose}
@@ -849,7 +884,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
 
           <div className="flex items-center gap-4">
             <span className="text-xs bg-neutral-100 px-2.5 py-1.5 rounded-lg text-neutral-500 font-mono hidden sm:inline-block">
-              Acesso: Administrator
+              Acesso: {currentRole === 'master' ? 'Master (Programador)' : 'Proprietária (Dona)'}
             </span>
             <button
               onClick={onClose}
