@@ -109,6 +109,13 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   // Combined Auth check (Google Admin or local credential)
   const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'p.nikolas3@gmail.com' || firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
 
+  // Real Database admin status checking Firebase authenticated email
+  const isFirebaseDbAdmin = !!(firebaseUser && firebaseUser.email && (
+    firebaseUser.email.toLowerCase() === 'p.nikolas3@gmail.com' ||
+    firebaseUser.email.toLowerCase() === 'ncodes@drajuliaguaraldo.com' ||
+    firebaseUser.email.toLowerCase() === 'julia@drajuliaguaraldo.com'
+  ));
+
   // Menu/Tab State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'info' | 'services' | 'media' | 'testimonials' | 'blog' | 'appointments'>('dashboard');
 
@@ -160,19 +167,38 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       try {
         const email = 'ncodes@drajuliaguaraldo.com';
         const pass = 'Taijou13';
+        let firebaseSuccess = false;
+        let firebaseErrorMsg = '';
+
         try {
           await signInWithEmailAndPassword(auth, email, pass);
+          firebaseSuccess = true;
         } catch (err: any) {
           if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
             try {
               await createUserWithEmailAndPassword(auth, email, pass);
-            } catch (createErr) {
+              firebaseSuccess = true;
+            } catch (createErr: any) {
               console.error('Failed to create background auth user:', createErr);
+              firebaseErrorMsg = createErr.message || String(createErr);
+              if (createErr.code === 'auth/operation-not-allowed') {
+                firebaseErrorMsg = "O provedor de login 'E-mail/Senha' está DESATIVADO no seu Firebase Console (Authentication > Sign-in method). Por favor, ative-o para habilitar esta conta.";
+              }
             }
           } else {
             console.error('Failed to login background auth user:', err);
+            firebaseErrorMsg = err.message || String(err);
+            if (err.code === 'auth/operation-not-allowed') {
+              firebaseErrorMsg = "O provedor de login 'E-mail/Senha' está DESATIVADO no seu Firebase Console (Authentication > Sign-in method). Por favor, ative-o para habilitar esta conta.";
+            }
           }
         }
+
+        if (!firebaseSuccess) {
+          setLoginError(`Erro de autenticação no Firebase: ${firebaseErrorMsg}. Como alternativa, use o botão "Entrar com Google" com uma conta de administrador autorizada.`);
+          return;
+        }
+
         setIsAuthenticated(true);
         setAdminRole('master');
         localStorage.setItem('vet_admin_auth', 'true');
@@ -190,19 +216,38 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
       try {
         const email = 'julia@drajuliaguaraldo.com';
         const pass = 'Julia123';
+        let firebaseSuccess = false;
+        let firebaseErrorMsg = '';
+
         try {
           await signInWithEmailAndPassword(auth, email, pass);
+          firebaseSuccess = true;
         } catch (err: any) {
           if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
             try {
               await createUserWithEmailAndPassword(auth, email, pass);
-            } catch (createErr) {
+              firebaseSuccess = true;
+            } catch (createErr: any) {
               console.error('Failed to create background auth user:', createErr);
+              firebaseErrorMsg = createErr.message || String(createErr);
+              if (createErr.code === 'auth/operation-not-allowed') {
+                firebaseErrorMsg = "O provedor de login 'E-mail/Senha' está DESATIVADO no seu Firebase Console (Authentication > Sign-in method). Por favor, ative-o para habilitar esta conta.";
+              }
             }
           } else {
             console.error('Failed to login background auth user:', err);
+            firebaseErrorMsg = err.message || String(err);
+            if (err.code === 'auth/operation-not-allowed') {
+              firebaseErrorMsg = "O provedor de login 'E-mail/Senha' está DESATIVADO no seu Firebase Console (Authentication > Sign-in method). Por favor, ative-o para habilitar esta conta.";
+            }
           }
         }
+
+        if (!firebaseSuccess) {
+          setLoginError(`Erro de autenticação no Firebase: ${firebaseErrorMsg}. Como alternativa, use o botão "Entrar com Google" com uma conta de administrador autorizada.`);
+          return;
+        }
+
         setIsAuthenticated(true);
         setAdminRole('owner');
         localStorage.setItem('vet_admin_auth', 'true');
@@ -224,13 +269,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      if (user.email === 'p.nikolas3@gmail.com') {
+      const email = user.email?.toLowerCase();
+      
+      if (email === 'p.nikolas3@gmail.com' || email === 'ncodes@drajuliaguaraldo.com') {
         setAdminRole('master');
         localStorage.setItem('vet_admin_role', 'master');
+        localStorage.setItem('vet_admin_auth', 'true');
+        triggerAlert('Login efetuado via Google!');
+      } else if (email === 'julia@drajuliaguaraldo.com') {
+        setAdminRole('owner');
+        localStorage.setItem('vet_admin_role', 'owner');
+        localStorage.setItem('vet_admin_auth', 'true');
         triggerAlert('Login efetuado via Google!');
       } else {
         await signOut(auth);
-        setLoginError('Apenas o e-mail administrador p.nikolas3@gmail.com tem permissão de acesso.');
+        setLoginError('Apenas os e-mails administradores cadastrados (p.nikolas3@gmail.com, ncodes@drajuliaguaraldo.com, julia@drajuliaguaraldo.com) têm permissão de acesso.');
       }
     } catch (error) {
       console.error(error);
@@ -942,6 +995,35 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             <div className={`p-4 rounded-xl flex items-center gap-3 border shadow-sm ${alert.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
               <Check size={18} />
               <span className="text-sm font-medium">{alert.message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* FIREBASE AUTH DISCONNECTED WARNING */}
+        {!isFirebaseDbAdmin && (
+          <div className="mx-8 mt-6">
+            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 shadow-xs space-y-3">
+              <div className="flex items-center gap-2.5 font-bold text-amber-800 text-sm">
+                <ShieldAlert size={20} className="text-amber-600 animate-pulse shrink-0" />
+                <span>Modo de Somente-Leitura Ativo (Sem Conexão de Autenticação com o Firebase)</span>
+              </div>
+              <p className="text-xs leading-relaxed text-amber-800">
+                O painel administrativo local está ativo, mas a sua sessão <strong>não possui autenticação direta com as permissões de gravação do banco de dados (Firebase)</strong>.
+                Por motivos de segurança das Regras de Segurança do Firestore, <strong>as operações de exclusão de mídias/depoimentos e modificação de dados serão rejeitadas</strong>.
+              </p>
+              <div className="text-xs bg-white/50 p-3.5 rounded-xl border border-amber-200/50 space-y-2">
+                <span className="block font-bold text-amber-950">Como resolver e liberar as ações de exclusão e edição:</span>
+                <ul className="list-disc list-inside space-y-1.5 text-amber-900 pl-1">
+                  <li>
+                    <strong className="text-amber-950">Opção 1 (Recomendada e Mais Rápida):</strong> Use a opção 
+                    <strong className="text-amber-950"> "Entrar com Google"</strong> na tela de login utilizando uma conta de administrador cadastrada (como <strong>p.nikolas3@gmail.com</strong>).
+                  </li>
+                  <li>
+                    <strong className="text-amber-950">Opção 2 (Para usar usuário/senha locais):</strong> Acesse o seu <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 hover:text-amber-800">Console do Firebase</a>, vá em 
+                    <strong className="text-amber-950"> Authentication &gt; Sign-in method</strong>, clique em <strong className="text-amber-950">Adicionar Provedor</strong>, selecione <strong className="text-amber-950">E-mail/Senha</strong> e ative-o. Uma vez ativado, o login local fará a autenticação correta no banco!
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
