@@ -133,6 +133,9 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   const [firebaseAuthError, setFirebaseAuthError] = useState<string>(() => {
     return localStorage.getItem('vet_firebase_auth_error') || '';
   });
+  const [showFirebaseWarning, setShowFirebaseWarning] = useState(() => {
+    return localStorage.getItem('vet_hide_firebase_warning') !== 'true';
+  });
 
   // Track Firebase Google Auth state
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
@@ -1168,19 +1171,29 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         )}
 
         {/* FIREBASE AUTH WARNING */}
-        {!firebaseUser && (
+        {!firebaseUser && showFirebaseWarning && (
           <div className="mx-8 mt-6">
-            <div className="p-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 shadow-sm space-y-2.5">
+            <div className="p-5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 shadow-sm space-y-2.5 relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFirebaseWarning(false);
+                  localStorage.setItem('vet_hide_firebase_warning', 'true');
+                }}
+                className="absolute top-4 right-4 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition cursor-pointer"
+              >
+                Ocultar Aviso
+              </button>
               <div className="flex items-center gap-2.5 font-semibold text-sm">
                 <ShieldAlert size={18} className="text-amber-600 shrink-0" />
                 <span>Alerta de Autenticação Firebase</span>
               </div>
-              <p className="text-xs text-amber-800 leading-relaxed">
+              <p className="text-xs text-amber-800 leading-relaxed pr-20">
                 Você iniciou o painel localmente, mas a conexão em segundo plano com o Firebase Auth falhou. 
                 Isso pode impedir a gravação e sincronização correta de dados com o Firestore.
               </p>
               {firebaseAuthError && (
-                <div className="mt-2 text-xs bg-amber-100/50 p-2.5 rounded-lg font-mono text-amber-900 border border-amber-200/50 leading-relaxed">
+                <div className="mt-2 text-xs bg-amber-100/50 p-2.5 rounded-lg font-mono text-amber-900 border border-amber-200/50 leading-relaxed pr-20">
                   <strong>Aviso:</strong> {firebaseAuthError}
                 </div>
               )}
