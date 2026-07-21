@@ -31,6 +31,31 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+function formatWhatsApp(raw: string): string {
+  const clean = raw.replace(/\D/g, '');
+  if (clean.length === 13 && clean.startsWith('55')) {
+    return `+55 (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
+  }
+  if (clean.length === 11) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+  }
+  if (clean.length === 10) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+  }
+  return raw;
+}
+
+function extractEmbedUrl(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.startsWith('<iframe') || trimmed.includes('<iframe')) {
+    const srcMatch = trimmed.match(/src=["']?([^"'\s>]+)["']?/i);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+  }
+  return trimmed;
+}
+
 interface MainSiteProps {
   cmsState: CMSState;
   onUpdateState: (newState: CMSState) => void;
@@ -1179,8 +1204,15 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
                 <Phone size={18} />
               </div>
               <div>
-                <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">Telefone Comercial</span>
-                <strong className="text-neutral-800 text-sm font-medium">{cmsState.info.phone}</strong>
+                <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block">WhatsApp / Telefone</span>
+                <a 
+                  href={`https://wa.me/${cmsState.info.whatsapp}`}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-vet-dark hover:underline text-sm font-medium block"
+                >
+                  {formatWhatsApp(cmsState.info.whatsapp)}
+                </a>
               </div>
             </div>
 
@@ -1236,7 +1268,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
         {/* Google Map iframe */}
         <div className="lg:col-span-7 h-96 lg:h-auto rounded-3xl overflow-hidden border border-neutral-200 shadow-md">
           <iframe 
-            src={cmsState.info.googleMapEmbedUrl} 
+            src={extractEmbedUrl(cmsState.info.googleMapEmbedUrl)} 
             className="w-full h-full border-0"
             allowFullScreen={false} 
             loading="lazy" 

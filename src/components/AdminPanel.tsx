@@ -338,16 +338,40 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     triggerAlert('Sessão encerrada.');
   };
 
+function extractEmbedUrl(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.startsWith('<iframe') || trimmed.includes('<iframe')) {
+    const srcMatch = trimmed.match(/src=["']?([^"'\s>]+)["']?/i);
+    if (srcMatch && srcMatch[1]) {
+      return srcMatch[1];
+    }
+  }
+  return trimmed;
+}
+
   // 1. Info Save Handler
   const handleSaveInfo = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanedEmbedUrl = extractEmbedUrl(infoForm.googleMapEmbedUrl);
+    const updatedInfo = { 
+      ...infoForm, 
+      phone: infoForm.whatsapp,
+      googleMapEmbedUrl: cleanedEmbedUrl
+    };
+    
+    // Also update local infoForm state with the cleaned URL
+    setInfoForm(prev => ({
+      ...prev,
+      googleMapEmbedUrl: cleanedEmbedUrl
+    }));
+
     const originalInfo = { ...cmsState.info };
     onUpdateState({
       ...cmsState,
-      info: infoForm
+      info: updatedInfo
     });
     try {
-      await saveClinicInfo(infoForm);
+      await saveClinicInfo(updatedInfo);
       triggerAlert('Configurações gerais atualizadas com sucesso!');
     } catch (err) {
       onUpdateState({
@@ -1646,24 +1670,14 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Telefone Exibição</label>
-                    <input 
-                      type="text" 
-                      value={infoForm.phone}
-                      onChange={e => setInfoForm({ ...infoForm, phone: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">WhatsApp (Apenas Números com DDD)</label>
+                    <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">WhatsApp e Telefone de Contato (Apenas Números com DDD)</label>
                     <input 
                       type="text" 
                       value={infoForm.whatsapp}
-                      onChange={e => setInfoForm({ ...infoForm, whatsapp: e.target.value })}
+                      onChange={e => setInfoForm({ ...infoForm, whatsapp: e.target.value, phone: e.target.value })}
                       className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light"
                     />
-                    <span className="text-[10px] text-neutral-400 block mt-1">Ex: 5511999998888</span>
+                    <span className="text-[10px] text-neutral-400 block mt-1">Ex: 5511999998888. Este número será utilizado tanto para conversas no WhatsApp quanto para as ligações telefônicas do site.</span>
                   </div>
 
                   <div>
