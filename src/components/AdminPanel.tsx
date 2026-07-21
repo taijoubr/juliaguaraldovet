@@ -9,7 +9,7 @@ import {
   Appointment 
 } from '../types';
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   saveClinicInfo, 
   saveService, 
@@ -104,14 +104,13 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   }, []);
 
   // Determine actual role in the current session
-  const currentRole = (firebaseUser && (firebaseUser.email === 'p.nikolas3@gmail.com' || firebaseUser.email === 'ncodes@drajuliaguaraldo.com')) ? 'master' : (firebaseUser && firebaseUser.email === 'julia@drajuliaguaraldo.com' ? 'owner' : adminRole);
+  const currentRole = (firebaseUser && firebaseUser.email === 'ncodes@drajuliaguaraldo.com') ? 'master' : (firebaseUser && firebaseUser.email === 'julia@drajuliaguaraldo.com' ? 'owner' : adminRole);
 
   // Combined Auth check (Google Admin or local credential)
-  const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'p.nikolas3@gmail.com' || firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
+  const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
 
   // Real Database admin status checking Firebase authenticated email
   const isFirebaseDbAdmin = !!(firebaseUser && firebaseUser.email && (
-    firebaseUser.email.toLowerCase() === 'p.nikolas3@gmail.com' ||
     firebaseUser.email.toLowerCase() === 'ncodes@drajuliaguaraldo.com' ||
     firebaseUser.email.toLowerCase() === 'julia@drajuliaguaraldo.com'
   ));
@@ -195,8 +194,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         }
 
         if (!firebaseSuccess) {
-          setLoginError(`Erro de autenticação no Firebase: ${firebaseErrorMsg}. Como alternativa, use o botão "Entrar com Google" com uma conta de administrador autorizada.`);
-          return;
+          console.warn('Firebase background auth failed:', firebaseErrorMsg);
         }
 
         setIsAuthenticated(true);
@@ -205,7 +203,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_role', 'master');
         localStorage.setItem('vet_admin_user', 'NCodes');
         setLoginError('');
-        triggerAlert('Login efetuado com sucesso como Master (Programador)!');
+        if (!firebaseSuccess) {
+          triggerAlert('Logado localmente com sucesso! (Verifique o aviso de permissões do Firebase abaixo)', 'error');
+        } else {
+          triggerAlert('Login efetuado com sucesso como Master (Programador)!');
+        }
       } catch (err: any) {
         console.error('Auth error:', err);
         setLoginError('Erro de autenticação no banco de dados.');
@@ -244,8 +246,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         }
 
         if (!firebaseSuccess) {
-          setLoginError(`Erro de autenticação no Firebase: ${firebaseErrorMsg}. Como alternativa, use o botão "Entrar com Google" com uma conta de administrador autorizada.`);
-          return;
+          console.warn('Firebase background auth failed:', firebaseErrorMsg);
         }
 
         setIsAuthenticated(true);
@@ -254,40 +255,17 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         localStorage.setItem('vet_admin_role', 'owner');
         localStorage.setItem('vet_admin_user', 'Júlia');
         setLoginError('');
-        triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
+        if (!firebaseSuccess) {
+          triggerAlert('Logada localmente com sucesso! (Verifique o aviso de permissões do Firebase abaixo)', 'error');
+        } else {
+          triggerAlert('Bem-vinda, Dra. Júlia! Login efetuado com sucesso.');
+        }
       } catch (err: any) {
         console.error('Auth error:', err);
         setLoginError('Erro de autenticação no banco de dados.');
       }
     } else {
       setLoginError('Usuário ou senha incorretos.');
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const email = user.email?.toLowerCase();
-      
-      if (email === 'p.nikolas3@gmail.com' || email === 'ncodes@drajuliaguaraldo.com') {
-        setAdminRole('master');
-        localStorage.setItem('vet_admin_role', 'master');
-        localStorage.setItem('vet_admin_auth', 'true');
-        triggerAlert('Login efetuado via Google!');
-      } else if (email === 'julia@drajuliaguaraldo.com') {
-        setAdminRole('owner');
-        localStorage.setItem('vet_admin_role', 'owner');
-        localStorage.setItem('vet_admin_auth', 'true');
-        triggerAlert('Login efetuado via Google!');
-      } else {
-        await signOut(auth);
-        setLoginError('Apenas os e-mails administradores cadastrados (p.nikolas3@gmail.com, ncodes@drajuliaguaraldo.com, julia@drajuliaguaraldo.com) têm permissão de acesso.');
-      }
-    } catch (error) {
-      console.error(error);
-      setLoginError('Erro ao fazer login com o Google. Certifique-se de que o pop-up não foi bloqueado.');
     }
   };
 
@@ -815,26 +793,6 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
             </button>
           </form>
 
-          <div className="relative flex py-4 items-center">
-            <div className="flex-grow border-t border-neutral-200"></div>
-            <span className="flex-shrink mx-4 text-neutral-400 text-xs font-medium uppercase tracking-wider">ou</span>
-            <div className="flex-grow border-t border-neutral-200"></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className="w-full bg-white text-neutral-700 border border-neutral-300 font-medium rounded-lg py-2.5 hover:bg-neutral-50 transition flex items-center justify-center gap-2.5 shadow-sm cursor-pointer"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            Entrar com Google
-          </button>
-
           <div className="mt-8 pt-6 border-t border-neutral-200 flex justify-end items-center text-xs text-neutral-400">
             <button 
               onClick={onClose}
@@ -1012,17 +970,11 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
                 Por motivos de segurança das Regras de Segurança do Firestore, <strong>as operações de exclusão de mídias/depoimentos e modificação de dados serão rejeitadas</strong>.
               </p>
               <div className="text-xs bg-white/50 p-3.5 rounded-xl border border-amber-200/50 space-y-2">
-                <span className="block font-bold text-amber-950">Como resolver e liberar as ações de exclusão e edição:</span>
-                <ul className="list-disc list-inside space-y-1.5 text-amber-900 pl-1">
-                  <li>
-                    <strong className="text-amber-950">Opção 1 (Recomendada e Mais Rápida):</strong> Use a opção 
-                    <strong className="text-amber-950"> "Entrar com Google"</strong> na tela de login utilizando uma conta de administrador cadastrada (como <strong>p.nikolas3@gmail.com</strong>).
-                  </li>
-                  <li>
-                    <strong className="text-amber-950">Opção 2 (Para usar usuário/senha locais):</strong> Acesse o seu <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 hover:text-amber-800">Console do Firebase</a>, vá em 
-                    <strong className="text-amber-950"> Authentication &gt; Sign-in method</strong>, clique em <strong className="text-amber-950">Adicionar Provedor</strong>, selecione <strong className="text-amber-950">E-mail/Senha</strong> e ative-o. Uma vez ativado, o login local fará a autenticação correta no banco!
-                  </li>
-                </ul>
+                <span className="block font-bold text-amber-950">Como resolver e liberar as ações de exclusão e edição no banco de dados:</span>
+                <p className="text-amber-900 leading-relaxed">
+                  Acesse o seu <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 hover:text-amber-800">Console do Firebase</a>, vá em 
+                  <strong className="text-amber-950"> Authentication &gt; Sign-in method</strong>, clique em <strong className="text-amber-950">Adicionar Provedor</strong>, selecione <strong className="text-amber-950">E-mail/Senha</strong> e ative-o. Uma vez ativado, os logins de administrador (ncodes@drajuliaguaraldo.com ou julia@drajuliaguaraldo.com) farão a autenticação correta no banco automaticamente!
+                </p>
               </div>
             </div>
           </div>
