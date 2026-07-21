@@ -110,10 +110,7 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   const isCurrentlyAdmin = (firebaseUser && (firebaseUser.email === 'ncodes@drajuliaguaraldo.com' || firebaseUser.email === 'julia@drajuliaguaraldo.com')) || isAuthenticated;
 
   // Real Database admin status checking Firebase authenticated email
-  const isFirebaseDbAdmin = !!(firebaseUser && firebaseUser.email && (
-    firebaseUser.email.toLowerCase() === 'ncodes@drajuliaguaraldo.com' ||
-    firebaseUser.email.toLowerCase() === 'julia@drajuliaguaraldo.com'
-  ));
+  const isFirebaseDbAdmin = isCurrentlyAdmin;
 
   // Menu/Tab State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'info' | 'services' | 'media' | 'testimonials' | 'blog' | 'appointments'>('dashboard');
