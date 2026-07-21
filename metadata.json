@@ -1,0 +1,6 @@
+{
+  "name": "Dra. Júlia Guaraldo",
+  "description": "Site institucional e CMS para Dra. Júlia Guaraldo, Médica Veterinária especializada em atendimento domiciliar e anestesiologia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

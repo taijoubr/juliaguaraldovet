@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "ClinicInfo": {
+      "title": "ClinicInfo",
+      "description": "General settings and info about Dra. Júlia Guaraldo's veterinary clinic",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "specialty": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "instagram": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "googleMapEmbedUrl": { "type": "string" },
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "heroButtonText1": { "type": "string" },
+        "heroButtonText2": { "type": "string" },
+        "heroBgImage": { "type": "string" },
+        "aboutTitle": { "type": "string" },
+        "aboutText": { "type": "string" },
+        "aboutImage": { "type": "string" },
+        "specializations": { "type": "array" },
+        "experiences": { "type": "array" },
+        "formations": { "type": "array" },
+        "logoImage": { "type": "string" }
+      },
+      "required": ["name", "specialty", "phone", "whatsapp", "email", "address"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Veterinary service offered by the clinic",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "details": { "type": "string" },
+        "icon": { "type": "string" },
+        "image": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "details"]
+    },
+    "MediaItem": {
+      "title": "MediaItem",
+      "description": "A media item (photo/video) in the gallery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "url": { "type": "string" },
+        "caption": { "type": "string" },
+        "category": { "type": "string" },
+        "videoType": { "type": "string" }
+      },
+      "required": ["id", "type", "url", "category"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "Tutor feedback and rating for services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "content": { "type": "string" },
+        "petName": { "type": "string" },
+        "petSpecies": { "type": "string" },
+        "rating": { "type": "number" },
+        "date": { "type": "string" },
+        "approved": { "type": "boolean" }
+      },
+      "required": ["id", "name", "content", "petName", "petSpecies", "rating", "date", "approved"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Informational blog post written by the vet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "date": { "type": "string" },
+        "tags": { "type": "array" },
+        "views": { "type": "number" }
+      },
+      "required": ["id", "title", "summary", "content", "category", "date"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A scheduled appointment request by a client",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "species": { "type": "string" },
+        "breed": { "type": "string" },
+        "age": { "type": "string" },
+        "weight": { "type": "string" },
+        "reason": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "address": { "type": "string" },
+        "cep": { "type": "string" },
+        "observations": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "email", "species", "date", "time", "status"]
+    },
+    "SiteStats": {
+      "title": "SiteStats",
+      "description": "Aggregated stats for page views and accesses",
+      "type": "object",
+      "properties": {
+        "accesses": { "type": "number" },
+        "views": { "type": "number" }
+      },
+      "required": ["accesses", "views"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Record of authorized administrators",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/settings/clinicInfo": {
+      "schema": "ClinicInfo",
+      "description": "Veterinary clinic global settings document"
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Individual clinic services"
+    },
+    "/media/{mediaId}": {
+      "schema": "MediaItem",
+      "description": "Media library items"
+    },
+    "/testimonials/{testimonialId}": {
+      "schema": "Testimonial",
+      "description": "Client testimonials"
+    },
+    "/blog/{blogPostId}": {
+      "schema": "BlogPost",
+      "description": "Blog posts and articles"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointment requests"
+    },
+    "/stats/siteStats": {
+      "schema": "SiteStats",
+      "description": "Website visitor and view statistics"
+    },
+    "/admins/{adminId}": {
+      "schema": "AdminUser",
+      "description": "Allowlisted administrators"
+    }
+  }
+}

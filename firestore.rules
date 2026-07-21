@@ -1,0 +1,195 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net - Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'p.nikolas3@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Validation Blueprints (Entity-specific schema checkers)
+    function isValidService(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.title is string && data.title.size() <= 100
+          && data.description is string && data.description.size() <= 1000
+          && data.details is string && data.details.size() <= 5000
+          && (!data.keys().hasAll(['icon']) || (data.icon is string && data.icon.size() <= 100))
+          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 1000));
+    }
+
+    function isValidMediaItem(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.type is string && (data.type == 'photo' || data.type == 'video')
+          && data.url is string && data.url.size() <= 2000
+          && (!data.keys().hasAll(['caption']) || (data.caption is string && data.caption.size() <= 1000))
+          && data.category is string && (data.category == 'Procedimentos' || data.category == 'Atendimentos' || data.category == 'Antes e Depois' || data.category == 'Clínica' || data.category == 'Outros')
+          && (!data.keys().hasAll(['videoType']) || (data.videoType is string && (data.videoType == 'youtube' || data.videoType == 'instagram' || data.videoType == 'tiktok' || data.videoType == 'local')));
+    }
+
+    function isValidTestimonial(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.name is string && data.name.size() <= 100
+          && data.content is string && data.content.size() <= 2000
+          && data.petName is string && data.petName.size() <= 100
+          && data.petSpecies is string && (data.petSpecies == 'Cão' || data.petSpecies == 'Gato' || data.petSpecies == 'Outros')
+          && data.rating is number && data.rating >= 1 && data.rating <= 5
+          && data.date is string && data.date.size() <= 50
+          && data.approved is bool;
+    }
+
+    function isValidBlogPost(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.title is string && data.title.size() <= 200
+          && data.summary is string && data.summary.size() <= 1000
+          && data.content is string && data.content.size() <= 50000
+          && data.category is string && data.category.size() <= 100
+          && (!data.keys().hasAll(['image']) || (data.image is string && data.image.size() <= 2000))
+          && data.date is string && data.date.size() <= 50
+          && (!data.keys().hasAll(['tags']) || data.tags is list)
+          && (!data.keys().hasAll(['views']) || data.views is number);
+    }
+
+    function isValidAppointment(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.name is string && data.name.size() <= 100
+          && data.phone is string && data.phone.size() <= 50
+          && (!data.keys().hasAll(['whatsapp']) || (data.whatsapp is string && data.whatsapp.size() <= 50))
+          && data.email is string && data.email.size() <= 100
+          && data.species is string && data.species.size() <= 50
+          && (!data.keys().hasAll(['breed']) || (data.breed is string && data.breed.size() <= 100))
+          && (!data.keys().hasAll(['age']) || (data.age is string && data.age.size() <= 50))
+          && (!data.keys().hasAll(['weight']) || (data.weight is string && data.weight.size() <= 50))
+          && (!data.keys().hasAll(['reason']) || (data.reason is string && data.reason.size() <= 2000))
+          && data.date is string && data.date.size() <= 50
+          && data.time is string && data.time.size() <= 50
+          && (!data.keys().hasAll(['address']) || (data.address is string && data.address.size() <= 500))
+          && (!data.keys().hasAll(['cep']) || (data.cep is string && data.cep.size() <= 20))
+          && (!data.keys().hasAll(['observations']) || (data.observations is string && data.observations.size() <= 5000))
+          && data.status is string && (data.status == 'Pendente' || data.status == 'Confirmado' || data.status == 'Cancelado')
+          && (!data.keys().hasAll(['createdAt']) || (data.createdAt is string && data.createdAt.size() <= 100));
+    }
+
+    function isValidClinicInfo(data) {
+      return data.name is string && data.name.size() <= 100
+          && data.specialty is string && data.specialty.size() <= 200
+          && data.phone is string && data.phone.size() <= 50
+          && data.whatsapp is string && data.whatsapp.size() <= 50
+          && (!data.keys().hasAll(['instagram']) || (data.instagram is string && data.instagram.size() <= 100))
+          && data.email is string && data.email.size() <= 100
+          && data.address is string && data.address.size() <= 500
+          && (!data.keys().hasAll(['googleMapEmbedUrl']) || (data.googleMapEmbedUrl is string && data.googleMapEmbedUrl.size() <= 2000))
+          && (!data.keys().hasAll(['heroTitle']) || (data.heroTitle is string && data.heroTitle.size() <= 200))
+          && (!data.keys().hasAll(['heroSubtitle']) || (data.heroSubtitle is string && data.heroSubtitle.size() <= 500))
+          && (!data.keys().hasAll(['heroButtonText1']) || (data.heroButtonText1 is string && data.heroButtonText1.size() <= 50))
+          && (!data.keys().hasAll(['heroButtonText2']) || (data.heroButtonText2 is string && data.heroButtonText2.size() <= 50))
+          && (!data.keys().hasAll(['heroBgImage']) || (data.heroBgImage is string && data.heroBgImage.size() <= 2000))
+          && (!data.keys().hasAll(['aboutTitle']) || (data.aboutTitle is string && data.aboutTitle.size() <= 200))
+          && (!data.keys().hasAll(['aboutText']) || (data.aboutText is string && data.aboutText.size() <= 5000))
+          && (!data.keys().hasAll(['aboutImage']) || (data.aboutImage is string && data.aboutImage.size() <= 2000))
+          && (!data.keys().hasAll(['specializations']) || data.specializations is list)
+          && (!data.keys().hasAll(['experiences']) || data.experiences is list)
+          && (!data.keys().hasAll(['formations']) || data.formations is list)
+          && (!data.keys().hasAll(['logoImage']) || (data.logoImage is string && data.logoImage.size() <= 2000000));
+    }
+
+    // 4. Matches and Collection Rules
+
+    // Settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if docId == 'clinicInfo' && isAdmin() && isValidClinicInfo(incoming());
+    }
+
+    // Services
+    match /services/{serviceId} {
+      allow read: if true;
+      allow create, update: if isValidId(serviceId) && isAdmin() && isValidService(incoming());
+      allow delete: if isValidId(serviceId) && isAdmin();
+    }
+
+    // Media Items
+    match /media/{mediaId} {
+      allow read: if true;
+      allow create, update: if isValidId(mediaId) && isAdmin() && isValidMediaItem(incoming());
+      allow delete: if isValidId(mediaId) && isAdmin();
+    }
+
+    // Testimonials
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      // Anyone can submit a testimonial, but only approved = false (moderated) unless submitted by Admin
+      allow create: if isValidId(testimonialId) && isValidTestimonial(incoming()) && (
+        (!incoming().approved) || (isAdmin())
+      );
+      // Only Admin can update (moderation) or delete testimonials
+      allow update: if isValidId(testimonialId) && isAdmin() && isValidTestimonial(incoming());
+      allow delete: if isValidId(testimonialId) && isAdmin();
+    }
+
+    // Blog posts
+    match /blog/{blogPostId} {
+      allow read: if true;
+      allow create: if isValidId(blogPostId) && isAdmin() && isValidBlogPost(incoming());
+      allow update: if isValidId(blogPostId) && (
+        (isAdmin() && isValidBlogPost(incoming())) ||
+        // Action: Increment view count by any user
+        (incoming().diff(existing()).affectedKeys().hasOnly(['views']) && incoming().views == existing().views + 1)
+      );
+      allow delete: if isValidId(blogPostId) && isAdmin();
+    }
+
+    // Appointments
+    match /appointments/{appointmentId} {
+      // Only Admin can view appointment requests (PII)
+      allow read: if isAdmin();
+      // Anyone can create an appointment request with initial status Pendente
+      allow create: if isValidId(appointmentId) && isValidAppointment(incoming()) && incoming().status == 'Pendente';
+      // Only Admin can update or delete appointments
+      allow update: if isValidId(appointmentId) && isAdmin() && isValidAppointment(incoming());
+      allow delete: if isValidId(appointmentId) && isAdmin();
+    }
+
+    // Stats
+    match /stats/{docId} {
+      allow read: if true;
+      allow create: if docId == 'siteStats' && incoming().accesses is number && incoming().views is number;
+      allow update: if docId == 'siteStats' && (
+        (incoming().diff(existing()).affectedKeys().hasAny(['accesses', 'views']))
+      );
+    }
+
+    // Admins List
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
