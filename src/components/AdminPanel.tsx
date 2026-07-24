@@ -1015,7 +1015,30 @@ function extractEmbedUrl(input: string): string {
     if (updatedAppt) {
       try {
         await saveAppointment(updatedAppt);
-        triggerAlert(`Status do agendamento atualizado para: ${newStatus}`);
+        
+        // Send email to tutor if email exists and status is Confirmado or Cancelado
+        const apptObj = updatedAppt as Appointment;
+        if (apptObj.email && (newStatus === 'Confirmado' || newStatus === 'Cancelado')) {
+          const customSmtp = (cmsState.info.smtpHost && cmsState.info.smtpUser && cmsState.info.smtpPass) ? {
+            host: cmsState.info.smtpHost,
+            port: cmsState.info.smtpPort,
+            user: cmsState.info.smtpUser,
+            pass: cmsState.info.smtpPass,
+          } : undefined;
+
+          fetch(`${window.location.origin}/api/send-status-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              appointment: apptObj,
+              customSmtp
+            })
+          }).catch(e => console.error("Error sending status email to tutor:", e));
+
+          triggerAlert(`Status atualizado para "${newStatus}" e e-mail enviado ao tutor (${apptObj.email})!`);
+        } else {
+          triggerAlert(`Status do agendamento atualizado para: ${newStatus}`);
+        }
       } catch (err) {
         onUpdateState({
           ...cmsState,
