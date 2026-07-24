@@ -79,6 +79,23 @@ export function isUserAdmin(email: string | null | undefined): boolean {
          cleanEmail === 'julia@drajuliaguaraldo.com';
 }
 
+// Helper to strip undefined properties for Firestore compliance
+function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+  const clean: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (Array.isArray(value)) {
+        clean[key] = value.map(item => (typeof item === 'object' && item !== null) ? sanitizeForFirestore(item) : item);
+      } else if (typeof value === 'object' && value !== null) {
+        clean[key] = sanitizeForFirestore(value);
+      } else {
+        clean[key] = value;
+      }
+    }
+  }
+  return clean as T;
+}
+
 // Fetch complete public and private state (conditional on auth)
 export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
   const state: Partial<CMSState> = {};
@@ -89,7 +106,7 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
     const infoRef = doc(db, 'settings', 'clinicInfo');
     const infoSnap = await getDoc(infoRef);
     if (infoSnap.exists()) {
-      state.info = infoSnap.data() as ClinicInfo;
+      state.info = { ...INITIAL_CMS_DATA.info, ...infoSnap.data() } as ClinicInfo;
       isSeeded = true;
     } else {
       state.info = INITIAL_CMS_DATA.info;
@@ -163,7 +180,7 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
 export async function saveClinicInfo(info: ClinicInfo) {
   const path = 'settings/clinicInfo';
   try {
-    await setDoc(doc(db, 'settings', 'clinicInfo'), info);
+    await setDoc(doc(db, 'settings', 'clinicInfo'), sanitizeForFirestore(info));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -172,7 +189,7 @@ export async function saveClinicInfo(info: ClinicInfo) {
 export async function saveService(service: Service) {
   const path = `services/${service.id}`;
   try {
-    await setDoc(doc(db, 'services', service.id), service);
+    await setDoc(doc(db, 'services', service.id), sanitizeForFirestore(service));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -190,7 +207,7 @@ export async function deleteService(id: string) {
 export async function saveMediaItem(media: MediaItem) {
   const path = `media/${media.id}`;
   try {
-    await setDoc(doc(db, 'media', media.id), media);
+    await setDoc(doc(db, 'media', media.id), sanitizeForFirestore(media));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -208,7 +225,7 @@ export async function deleteMediaItem(id: string) {
 export async function saveTestimonial(testimonial: Testimonial) {
   const path = `testimonials/${testimonial.id}`;
   try {
-    await setDoc(doc(db, 'testimonials', testimonial.id), testimonial);
+    await setDoc(doc(db, 'testimonials', testimonial.id), sanitizeForFirestore(testimonial));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -226,7 +243,7 @@ export async function deleteTestimonial(id: string) {
 export async function saveBlogPost(post: BlogPost) {
   const path = `blog/${post.id}`;
   try {
-    await setDoc(doc(db, 'blog', post.id), post);
+    await setDoc(doc(db, 'blog', post.id), sanitizeForFirestore(post));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -244,7 +261,7 @@ export async function deleteBlogPost(id: string) {
 export async function saveAppointment(appointment: Appointment) {
   const path = `appointments/${appointment.id}`;
   try {
-    await setDoc(doc(db, 'appointments', appointment.id), appointment);
+    await setDoc(doc(db, 'appointments', appointment.id), sanitizeForFirestore(appointment));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

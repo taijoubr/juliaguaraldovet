@@ -114,7 +114,12 @@ service cloud.firestore {
           && (!data.keys().hasAll(['specializations']) || data.specializations is list)
           && (!data.keys().hasAll(['experiences']) || data.experiences is list)
           && (!data.keys().hasAll(['formations']) || data.formations is list)
-          && (!data.keys().hasAll(['logoImage']) || (data.logoImage is string && data.logoImage.size() <= 2000000));
+          && (!data.keys().hasAll(['logoImage']) || (data.logoImage is string && data.logoImage.size() <= 2000000))
+          && (!data.keys().hasAll(['notificationEmail']) || (data.notificationEmail is string && data.notificationEmail.size() <= 500))
+          && (!data.keys().hasAll(['smtpHost']) || (data.smtpHost is string && data.smtpHost.size() <= 200))
+          && (!data.keys().hasAll(['smtpPort']) || (data.smtpPort is string && data.smtpPort.size() <= 20))
+          && (!data.keys().hasAll(['smtpUser']) || (data.smtpUser is string && data.smtpUser.size() <= 200))
+          && (!data.keys().hasAll(['smtpPass']) || (data.smtpPass is string && data.smtpPass.size() <= 200));
     }
 
     // 4. Matches and Collection Rules

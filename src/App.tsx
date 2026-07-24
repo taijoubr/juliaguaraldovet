@@ -25,8 +25,18 @@ export default function App() {
   // Track if current user is an authorized admin
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  // CMS State Engine loaded from Firestore
-  const [cmsState, setCmsState] = useState<CMSState>(INITIAL_CMS_DATA);
+  // CMS State Engine loaded from Firestore with LocalStorage cache fallback
+  const [cmsState, setCmsState] = useState<CMSState>(() => {
+    try {
+      const cached = localStorage.getItem('vet_cms_state');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error("Failed to parse cached CMS state from localStorage:", e);
+    }
+    return INITIAL_CMS_DATA;
+  });
 
   // Track page views and accesses on boot
   useEffect(() => {
@@ -83,14 +93,24 @@ export default function App() {
       try {
         // Load live CMS state from Firestore in background
         const dbState = await loadCMSState(adminStatus);
-        setCmsState(dbState);
+        if (dbState && dbState.info) {
+          setCmsState(dbState);
+          try {
+            localStorage.setItem('vet_cms_state', JSON.stringify(dbState));
+          } catch (e) {}
+        }
 
         // Update visitor statistics securely on launch if not admin
         if (!adminStatus) {
           try {
             await incrementStats(1, 2);
             const refreshedState = await loadCMSState(adminStatus);
-            setCmsState(refreshedState);
+            if (refreshedState && refreshedState.info) {
+              setCmsState(refreshedState);
+              try {
+                localStorage.setItem('vet_cms_state', JSON.stringify(refreshedState));
+              } catch (e) {}
+            }
           } catch (err) {
             console.error("Failed to increment stats:", err);
           }
@@ -105,9 +125,14 @@ export default function App() {
     };
   }, []);
 
-  // Sync state mutations to state locally
+  // Sync state mutations to state locally and persist in cache
   const handleUpdateState = (newState: CMSState) => {
     setCmsState(newState);
+    try {
+      localStorage.setItem('vet_cms_state', JSON.stringify(newState));
+    } catch (e) {
+      console.error("Failed to write to localStorage cache:", e);
+    }
   };
 
   return (

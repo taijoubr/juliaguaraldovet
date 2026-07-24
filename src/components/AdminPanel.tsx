@@ -166,6 +166,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     ...cmsState.info,
     logoImage: cmsState.info.logoImage || ''
   });
+
+  // Sync infoForm when cmsState.info updates
+  useEffect(() => {
+    if (cmsState?.info) {
+      setInfoForm(prev => ({
+        ...cmsState.info,
+        logoImage: cmsState.info.logoImage || '',
+        notificationEmail: cmsState.info.notificationEmail ?? prev.notificationEmail ?? '',
+        smtpHost: cmsState.info.smtpHost ?? prev.smtpHost ?? '',
+        smtpPort: cmsState.info.smtpPort ?? prev.smtpPort ?? '',
+        smtpUser: cmsState.info.smtpUser ?? prev.smtpUser ?? '',
+        smtpPass: cmsState.info.smtpPass ?? prev.smtpPass ?? ''
+      }));
+    }
+  }, [cmsState.info]);
   
   // Email testing states
   const [isTestingEmail, setIsTestingEmail] = useState(false);
