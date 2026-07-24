@@ -138,6 +138,8 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
     observations: ''
   });
   const [appointmentSubmitted, setAppointmentSubmitted] = useState(false);
+  const [isSendingAppointment, setIsSendingAppointment] = useState(false);
+  const [lastSubmittedAppointment, setLastSubmittedAppointment] = useState<Appointment | null>(null);
 
   // Scroll detection for "Back to top"
   useEffect(() => {
@@ -178,6 +180,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
   // Submit appointment request
   const handleScheduleAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSendingAppointment(true);
     
     const newAppointment: Appointment = {
       id: 'A' + Math.floor(1000 + Math.random() * 9000),
@@ -191,22 +194,45 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
       appointments: [newAppointment, ...cmsState.appointments]
     });
 
-    setAppointmentSubmitted(true);
+    setLastSubmittedAppointment(newAppointment);
 
+    // Save to Firestore
     try {
       await saveAppointment(newAppointment);
     } catch (e) {
       console.error("Failed to save appointment in Firestore:", e);
     }
 
-    setTimeout(() => {
-      setAppointmentSubmitted(false);
+    // Dispatch notification email via backend API
+    try {
+      const targetEmail = cmsState.info.notificationEmail || cmsState.info.email;
+      const customSmtp = (cmsState.info.smtpHost && cmsState.info.smtpUser && cmsState.info.smtpPass) ? {
+        host: cmsState.info.smtpHost,
+        port: cmsState.info.smtpPort,
+        user: cmsState.info.smtpUser,
+        pass: cmsState.info.smtpPass,
+      } : undefined;
+
+      await fetch('/api/send-appointment-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment: newAppointment,
+          targetEmail,
+          customSmtp
+        })
+      });
+    } catch (e) {
+      console.error("Failed to trigger email API endpoint:", e);
+    } finally {
+      setIsSendingAppointment(false);
+      setAppointmentSubmitted(true);
       setAppointmentForm({
         name: '', phone: '', whatsapp: '', email: '',
         species: 'Cão', breed: '', age: '', weight: '',
         reason: '', date: '', time: '', address: '', cep: '', observations: ''
       });
-    }, 5000);
+    }
   };
 
   // Submit testimonial
@@ -987,15 +1013,58 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="py-12 text-center space-y-4"
+                className="py-10 text-center space-y-6"
               >
-                <div className="bg-emerald-50 text-emerald-600 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto shadow-sm">
-                  <CheckCircle2 size={36} />
+                <div className="bg-emerald-50 text-emerald-600 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto shadow-sm border border-emerald-100">
+                  <CheckCircle2 size={44} />
                 </div>
-                <h4 className="font-bold text-lg text-neutral-800">Pedido Enviado com Sucesso!</h4>
-                <p className="text-xs text-neutral-500 leading-relaxed max-w-md mx-auto">
-                  Agradecemos a confiança! Os dados foram gravados em nossa base clínica. A Dra. Júlia entrará em contato via WhatsApp no número informado muito em breve.
-                </p>
+                <div className="space-y-2">
+                  <h4 className="font-bold text-xl text-neutral-800 font-serif">Solicitação Enviada com Sucesso!</h4>
+                  <p className="text-xs text-neutral-600 leading-relaxed max-w-lg mx-auto">
+                    Os dados foram registrados no sistema clínico e um e-mail de notificação automática foi enviado para <strong className="text-vet-dark">{cmsState.info.notificationEmail || cmsState.info.email}</strong>.
+                  </p>
+                </div>
+
+                {lastSubmittedAppointment && (
+                  <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 text-left text-xs max-w-md mx-auto space-y-2">
+                    <div className="flex justify-between border-b border-neutral-200 pb-2">
+                      <span className="font-semibold text-neutral-500 uppercase text-[10px]">Tutor</span>
+                      <span className="font-bold text-neutral-800">{lastSubmittedAppointment.name}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-neutral-200 pb-2">
+                      <span className="font-semibold text-neutral-500 uppercase text-[10px]">Pet / Espécie</span>
+                      <span className="text-neutral-800">{lastSubmittedAppointment.species} {lastSubmittedAppointment.breed ? `(${lastSubmittedAppointment.breed})` : ''}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-semibold text-neutral-500 uppercase text-[10px]">E-mail de Notificação</span>
+                      <span className="text-emerald-700 font-medium">{cmsState.info.notificationEmail || cmsState.info.email}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
+                  {lastSubmittedAppointment && (
+                    <a
+                      href={`https://wa.me/${cmsState.info.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(
+                        `Olá Dra. Júlia! Realizei uma solicitação de agendamento no site para o meu pet ${lastSubmittedAppointment.species} (${lastSubmittedAppointment.name}). Poderia confirmar a disponibilidade?`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition"
+                    >
+                      <span>Notificar no WhatsApp</span>
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      setAppointmentSubmitted(false);
+                      setLastSubmittedAppointment(null);
+                    }}
+                    className="bg-neutral-200 hover:bg-neutral-300 text-neutral-700 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition"
+                  >
+                    Novo Agendamento
+                  </button>
+                </div>
               </motion.div>
             ) : (
               <>
@@ -1190,9 +1259,17 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
 
                 <button
                   type="submit"
-                  className="w-full bg-vet-leaf text-white hover:bg-vet-dark py-4 rounded-xl text-xs font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(142,187,99,0.3)] hover:shadow-lg transition cursor-pointer"
+                  disabled={isSendingAppointment}
+                  className="w-full bg-vet-leaf text-white hover:bg-vet-dark py-4 rounded-xl text-xs font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(142,187,99,0.3)] hover:shadow-lg transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Solicitar Consulta Domiciliar
+                  {isSendingAppointment ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Enviando e Notificando por E-mail...</span>
+                    </>
+                  ) : (
+                    <span>Solicitar Consulta & Notificar por E-mail</span>
+                  )}
                 </button>
               </>
             )}

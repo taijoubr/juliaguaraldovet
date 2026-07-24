@@ -1734,6 +1734,89 @@ function extractEmbedUrl(input: string): string {
                 </div>
               </div>
 
+              {/* Email Notifications Configuration */}
+              <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                  <h3 className="text-lg font-bold text-neutral-800 font-display flex items-center gap-2">
+                    <span>📧 Notificações por E-mail (Agendamentos)</span>
+                  </h3>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
+                    Ativo
+                  </span>
+                </div>
+
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Quando um tutor preenche o formulário de solicitação de agendamento no site, uma notificação detalhada é enviada para o seu e-mail de recebimento.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">E-mail(s) para Receber os Agendamentos</label>
+                    <input 
+                      type="text" 
+                      placeholder={infoForm.email || "ex: contato@juliaguaraldo.com.br, dra.julia@gmail.com"}
+                      value={infoForm.notificationEmail || ''}
+                      onChange={e => setInfoForm({ ...infoForm, notificationEmail: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50/50"
+                    />
+                    <span className="text-[10px] text-neutral-400 block mt-1">
+                      Você pode colocar <strong>mais de 1 e-mail</strong> separando por vírgula (ex: <code className="bg-neutral-100 px-1 py-0.5 rounded">email1@site.com, email2@site.com</code>). Se deixar em branco, o aviso vai para o e-mail principal ({infoForm.email || 'contato'}).
+                    </span>
+                  </div>
+
+                  <div className="sm:col-span-2 border-t border-neutral-100 pt-3 mt-1">
+                    <h4 className="text-xs font-bold text-neutral-700 uppercase mb-2">Servidor de Disparo SMTP (Opcional - Personalizado)</h4>
+                    <p className="text-[11px] text-neutral-500 mb-3">
+                      Caso deseje utilizar sua própria conta de e-mail (ex: Gmail com Senha de App, Mailtrap ou Resend) para realizar os envios:
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Servidor SMTP (Host)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: smtp.gmail.com"
+                      value={infoForm.smtpHost || ''}
+                      onChange={e => setInfoForm({ ...infoForm, smtpHost: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Porta SMTP</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: 587 ou 465"
+                      value={infoForm.smtpPort || ''}
+                      onChange={e => setInfoForm({ ...infoForm, smtpPort: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Usuário / E-mail SMTP</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: seu-email@gmail.com"
+                      value={infoForm.smtpUser || ''}
+                      onChange={e => setInfoForm({ ...infoForm, smtpUser: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Senha SMTP / Senha de App</label>
+                    <input 
+                      type="password" 
+                      placeholder="••••••••••••"
+                      value={infoForm.smtpPass || ''}
+                      onChange={e => setInfoForm({ ...infoForm, smtpPass: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Form Submission */}
               <div className="flex justify-end gap-3">
                 <button

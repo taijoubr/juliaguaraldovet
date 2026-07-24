@@ -19,6 +19,11 @@ export interface ClinicInfo {
   experiences: string[];
   formations: string[];
   logoImage?: string;
+  notificationEmail?: string;
+  smtpHost?: string;
+  smtpPort?: string;
+  smtpUser?: string;
+  smtpPass?: string;
 }
 
 export interface Service {
