@@ -184,7 +184,8 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     } : undefined;
 
     try {
-      const res = await fetch('/api/test-email', {
+      const endpoint = `${window.location.origin}/api/test-email`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -193,14 +194,21 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
         })
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        data = { error: `Servidor retornou resposta inesperada (${res.status}).` };
+      }
+
       if (res.ok && data.success) {
         setTestEmailResult({ success: true, message: data.message });
       } else {
-        setTestEmailResult({ success: false, message: data.error || 'Erro ao disparar e-mail de teste' });
+        setTestEmailResult({ success: false, message: data.error || 'Erro ao disparar e-mail de teste.' });
       }
     } catch (err: any) {
-      setTestEmailResult({ success: false, message: `Erro de conexão: ${err.message || err}` });
+      setTestEmailResult({ success: false, message: `Erro de conexão: ${err?.message || err}` });
     } finally {
       setIsTestingEmail(false);
     }
@@ -1852,6 +1860,9 @@ function extractEmbedUrl(input: string): string {
                       onChange={e => setInfoForm({ ...infoForm, smtpPass: e.target.value })}
                       className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
                     />
+                    <span className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 mt-1 block">
+                      💡 <strong>Dica Gmail:</strong> Use uma <em>Senha de App</em> de 16 caracteres (gerada na Conta do Google em <u>Segurança &gt; Senhas de App</u>), e não a senha pessoal.
+                    </span>
                   </div>
 
                   <div className="sm:col-span-2 border-t border-neutral-100 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

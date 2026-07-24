@@ -213,7 +213,8 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
         pass: cmsState.info.smtpPass,
       } : undefined;
 
-      await fetch('/api/send-appointment-email', {
+      const endpoint = `${window.location.origin}/api/send-appointment-email`;
+      await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
