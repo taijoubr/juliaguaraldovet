@@ -167,6 +167,45 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
     logoImage: cmsState.info.logoImage || ''
   });
   
+  // Email testing states
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestEmail = async () => {
+    setIsTestingEmail(true);
+    setTestEmailResult(null);
+
+    const targetEmail = infoForm.notificationEmail || infoForm.email;
+    const customSmtp = (infoForm.smtpHost && infoForm.smtpUser && infoForm.smtpPass) ? {
+      host: infoForm.smtpHost,
+      port: infoForm.smtpPort,
+      user: infoForm.smtpUser,
+      pass: infoForm.smtpPass,
+    } : undefined;
+
+    try {
+      const res = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetEmail,
+          customSmtp
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestEmailResult({ success: true, message: data.message });
+      } else {
+        setTestEmailResult({ success: false, message: data.error || 'Erro ao disparar e-mail de teste' });
+      }
+    } catch (err: any) {
+      setTestEmailResult({ success: false, message: `Erro de conexão: ${err.message || err}` });
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
+  
   // Service edit states
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isCreatingService, setIsCreatingService] = useState(false);
@@ -1814,6 +1853,47 @@ function extractEmbedUrl(input: string): string {
                       className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
                     />
                   </div>
+
+                  <div className="sm:col-span-2 border-t border-neutral-100 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={handleTestEmail}
+                      disabled={isTestingEmail}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isTestingEmail ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Testando Conexão SMTP...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail size={14} />
+                          <span>Enviar E-mail de Teste Agora</span>
+                        </>
+                      )}
+                    </button>
+
+                    <span className="text-[11px] text-neutral-500">
+                      Dispara para: <strong className="text-neutral-800">{infoForm.notificationEmail || infoForm.email || 'Não definido'}</strong>
+                    </span>
+                  </div>
+
+                  {testEmailResult && (
+                    <div className={`sm:col-span-2 p-3.5 rounded-xl text-xs flex items-start gap-2.5 border ${
+                      testEmailResult.success 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}>
+                      <div className="mt-0.5 shrink-0">
+                        {testEmailResult.success ? <Check size={16} className="text-emerald-600" /> : <AlertCircle size={16} className="text-rose-600" />}
+                      </div>
+                      <div className="leading-relaxed">
+                        <strong>{testEmailResult.success ? 'Conexão de E-mail OK!' : 'Atenção / Falha no Envio:'}</strong>
+                        <p className="mt-0.5">{testEmailResult.message}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
