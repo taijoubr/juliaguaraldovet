@@ -132,6 +132,46 @@
         "email": { "type": "string" }
       },
       "required": ["email"]
+    },
+    "FinancialItem": {
+      "title": "FinancialItem",
+      "description": "Catalog item for services, procedures, medicines, or supplies with pricing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "type": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "dosage": { "type": "string" },
+        "stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "code": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "price"]
+    },
+    "FinancialBudget": {
+      "title": "FinancialBudget",
+      "description": "Recorded budget or invoice quote for client consultations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "petName": { "type": "string" },
+        "date": { "type": "string" },
+        "items": { "type": "array" },
+        "discount": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "clientName", "petName", "date", "items", "subtotal", "total", "status"]
     }
   },
   "firestore": {
@@ -158,6 +198,14 @@
     "/appointments/{appointmentId}": {
       "schema": "Appointment",
       "description": "Appointment requests"
+    },
+    "/financialItems/{financialItemId}": {
+      "schema": "FinancialItem",
+      "description": "Services and medicines pricing catalog"
+    },
+    "/financialBudgets/{financialBudgetId}": {
+      "schema": "FinancialBudget",
+      "description": "Financial budgets and invoice receipts"
     },
     "/stats/siteStats": {
       "schema": "SiteStats",

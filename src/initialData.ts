@@ -216,6 +216,117 @@ export const INITIAL_CMS_DATA: CMSState = {
       createdAt: "2026-07-20T11:15:00Z"
     }
   ],
+  financialItems: [
+    {
+      id: "fi1",
+      name: "Consulta Clínica Domiciliar",
+      category: "Serviço",
+      type: "service",
+      price: 250,
+      description: "Exame clínico geral presencial e anamnese no domicílio do tutor.",
+      unit: "Sessão",
+      code: "SERV-001"
+    },
+    {
+      id: "fi2",
+      name: "Avaliação Anestésica Pré-Operatória",
+      category: "Procedimento",
+      type: "service",
+      price: 350,
+      description: "Avaliação de risco anestésico, ausculta e planejamento multimodal.",
+      unit: "Procedimento",
+      code: "SERV-002"
+    },
+    {
+      id: "fi3",
+      name: "Protocolo Anestésico Cirúrgico (Hora)",
+      category: "Procedimento",
+      type: "service",
+      price: 600,
+      description: "Monitoramento ininterrupto de parâmetros com anestesia inalatória/venosa.",
+      unit: "Hora",
+      code: "SERV-003"
+    },
+    {
+      id: "fi4",
+      name: "Vacina V10 / Tríplice Felina Domiciliar",
+      category: "Serviço",
+      type: "service",
+      price: 160,
+      description: "Aplicação e emissão de carteirinha de vacinação ética.",
+      unit: "Dose",
+      code: "SERV-004"
+    },
+    {
+      id: "fi5",
+      name: "Meloxicam Gatos/Cães 0.5mg / mL",
+      category: "Medicamento",
+      type: "medication",
+      price: 65,
+      description: "Anti-inflamatório não esteroidal veterinário.",
+      dosage: "0.1 mg/kg",
+      stock: 15,
+      unit: "Frasco",
+      code: "MED-001"
+    },
+    {
+      id: "fi6",
+      name: "Dipirona Sódica Injetável 500mg/mL",
+      category: "Medicamento",
+      type: "medication",
+      price: 30,
+      description: "Analgésico e antitérmico para aplicação veterinária.",
+      dosage: "25 mg/kg",
+      stock: 30,
+      unit: "Ampola",
+      code: "MED-002"
+    },
+    {
+      id: "fi7",
+      name: "Kit Bloqueio Locorregional Anestésico",
+      category: "Insumo",
+      type: "medication",
+      price: 180,
+      description: "Cateteres, agulhas de neurolocalização e anestésico local.",
+      stock: 10,
+      unit: "Kit",
+      code: "INS-001"
+    }
+  ],
+  financialBudgets: [
+    {
+      id: "fb1",
+      appointmentId: "a2",
+      clientName: "Marcus Aurelius",
+      petName: "Thor (Golden Retriever)",
+      date: "2026-07-24",
+      items: [
+        {
+          itemId: "fi2",
+          name: "Avaliação Anestésica Pré-Operatória",
+          type: "service",
+          unitPrice: 350,
+          quantity: 1,
+          total: 350
+        },
+        {
+          itemId: "fi6",
+          name: "Dipirona Sódica Injetável 500mg/mL",
+          type: "medication",
+          unitPrice: 30,
+          quantity: 1,
+          total: 30
+        }
+      ],
+      discount: 20,
+      subtotal: 380,
+      total: 360,
+      status: "Pago",
+      paymentMethod: "Pix",
+      notes: "Avaliação realizada com sucesso antes do procedimento de tártaro.",
+      createdAt: "2026-07-24T10:00:00Z"
+    }
+  ],
   stats: {
     accesses: 1240,
     views: 3120

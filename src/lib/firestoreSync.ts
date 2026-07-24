@@ -9,7 +9,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db, auth, OperationType, handleFirestoreError } from '../firebase';
-import { CMSState, ClinicInfo, Service, MediaItem, Testimonial, BlogPost, Appointment, SiteStats } from '../types';
+import { CMSState, ClinicInfo, Service, MediaItem, Testimonial, BlogPost, Appointment, FinancialItem, FinancialBudget, SiteStats } from '../types';
 import { INITIAL_CMS_DATA } from '../initialData';
 
 // Validate connection on boot as mandated by the Firebase Skill
@@ -61,6 +61,16 @@ export async function seedFirestoreIfEmpty() {
       // Seed default appointments
       for (const item of INITIAL_CMS_DATA.appointments) {
         await setDoc(doc(db, 'appointments', item.id), item);
+      }
+
+      // Seed Financial Items
+      for (const item of INITIAL_CMS_DATA.financialItems) {
+        await setDoc(doc(db, 'financialItems', item.id), item);
+      }
+
+      // Seed Financial Budgets
+      for (const item of INITIAL_CMS_DATA.financialBudgets) {
+        await setDoc(doc(db, 'financialBudgets', item.id), item);
       }
 
       console.log('Seeding complete!');
@@ -142,7 +152,7 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
   state.testimonials = await loadCollection<Testimonial>('testimonials', INITIAL_CMS_DATA.testimonials);
   state.blog = await loadCollection<BlogPost>('blog', INITIAL_CMS_DATA.blog);
 
-  // 6. Load Appointments (Securely conditional on isAdminUser)
+  // 6. Load Appointments and Financials (Securely conditional on isAdminUser)
   if (isAdminUser) {
     try {
       const appointmentsSnap = await getDocs(collection(db, 'appointments'));
@@ -155,9 +165,14 @@ export async function loadCMSState(isAdminUser: boolean): Promise<CMSState> {
       console.error('Error loading appointments from Firestore:', e);
       state.appointments = [];
     }
+
+    state.financialItems = await loadCollection<FinancialItem>('financialItems', INITIAL_CMS_DATA.financialItems);
+    state.financialBudgets = await loadCollection<FinancialBudget>('financialBudgets', INITIAL_CMS_DATA.financialBudgets);
   } else {
-    // Normal visitors never see protected appointments (Zero-trust)
+    // Normal visitors never see protected appointments or financial records (Zero-trust)
     state.appointments = [];
+    state.financialItems = [];
+    state.financialBudgets = [];
   }
 
   try {
@@ -271,6 +286,42 @@ export async function deleteAppointment(id: string) {
   const path = `appointments/${id}`;
   try {
     await deleteDoc(doc(db, 'appointments', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function saveFinancialItem(item: FinancialItem) {
+  const path = `financialItems/${item.id}`;
+  try {
+    await setDoc(doc(db, 'financialItems', item.id), sanitizeForFirestore(item));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteFinancialItem(id: string) {
+  const path = `financialItems/${id}`;
+  try {
+    await deleteDoc(doc(db, 'financialItems', id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function saveFinancialBudget(budget: FinancialBudget) {
+  const path = `financialBudgets/${budget.id}`;
+  try {
+    await setDoc(doc(db, 'financialBudgets', budget.id), sanitizeForFirestore(budget));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteFinancialBudget(id: string) {
+  const path = `financialBudgets/${id}`;
+  try {
+    await deleteDoc(doc(db, 'financialBudgets', id));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }

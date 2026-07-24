@@ -4,9 +4,11 @@ import {
   ClinicInfo, 
   Service, 
   MediaItem, 
-  Testimonial, 
   BlogPost, 
-  Appointment 
+  Appointment,
+  FinancialItem,
+  FinancialBudget,
+  BudgetItem
 } from '../types';
 import { auth } from '../firebase';
 import { signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -16,12 +18,14 @@ import {
   deleteService, 
   saveMediaItem, 
   deleteMediaItem, 
-  saveTestimonial, 
-  deleteTestimonial, 
   saveBlogPost, 
   deleteBlogPost, 
   saveAppointment, 
-  deleteAppointment 
+  deleteAppointment,
+  saveFinancialItem,
+  deleteFinancialItem,
+  saveFinancialBudget,
+  deleteFinancialBudget
 } from '../lib/firestoreSync';
 import { 
   Activity, 
@@ -52,7 +56,17 @@ import {
   Clock, 
   Shield, 
   AlertCircle,
-  FileDown
+  FileDown,
+  DollarSign,
+  Receipt,
+  CreditCard,
+  Package,
+  ShoppingCart,
+  Calculator,
+  Printer,
+  Search,
+  Tag,
+  Percent
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -156,7 +170,50 @@ export default function AdminPanel({ cmsState, onUpdateState, onClose }: AdminPa
   const isFirebaseDbAdmin = isCurrentlyAdmin;
 
   // Menu/Tab State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'info' | 'services' | 'media' | 'testimonials' | 'blog' | 'appointments'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'info' | 'services' | 'media' | 'blog' | 'appointments' | 'financial'>('dashboard');
+
+  // Financial Tab State
+  const [financialSubTab, setFinancialSubTab] = useState<'catalog' | 'budgets'>('catalog');
+  const [financialSearch, setFinancialSearch] = useState('');
+  const [financialCategoryFilter, setFinancialCategoryFilter] = useState<string>('Todos');
+
+  // Financial Item Form State
+  const [showFinancialItemModal, setShowFinancialItemModal] = useState(false);
+  const [editingFinancialItem, setEditingFinancialItem] = useState<FinancialItem | null>(null);
+  const [financialItemForm, setFinancialItemForm] = useState({
+    name: '',
+    category: 'Serviço' as 'Serviço' | 'Medicamento' | 'Exame' | 'Procedimento' | 'Insumo' | 'Outros',
+    type: 'service' as 'service' | 'medication',
+    price: '' as string | number,
+    description: '',
+    dosage: '',
+    stock: '' as string | number,
+    unit: 'Sessão',
+    code: ''
+  });
+
+  // Budget / Invoice Form State
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<FinancialBudget | null>(null);
+  const [budgetForm, setBudgetForm] = useState({
+    appointmentId: '',
+    clientName: '',
+    petName: '',
+    date: new Date().toISOString().split('T')[0],
+    items: [] as BudgetItem[],
+    discount: '' as string | number,
+    notes: '',
+    status: 'Orçamento' as 'Orçamento' | 'Pago' | 'Pendente' | 'Cancelado',
+    paymentMethod: 'Pix' as 'Pix' | 'Dinheiro' | 'Cartão de Crédito' | 'Cartão de Débito' | 'Transferência' | 'Outro'
+  });
+  const [budgetItemSelector, setBudgetItemSelector] = useState({
+    itemId: '',
+    quantity: 1,
+    customUnitPrice: '' as string | number
+  });
+
+  // Receipt / Quote Printable Modal
+  const [selectedBudgetForReceipt, setSelectedBudgetForReceipt] = useState<FinancialBudget | null>(null);
 
   // Success / Error Alerts
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -839,56 +896,6 @@ function extractEmbedUrl(input: string): string {
     }
   };
 
-  // 4. Testimonials Approvals
-  const handleToggleTestimonialApproval = async (id: string) => {
-    let updatedItem: Testimonial | null = null;
-    const updated = cmsState.testimonials.map(t => {
-      if (t.id === id) {
-        updatedItem = { ...t, approved: !t.approved };
-        return updatedItem;
-      }
-      return t;
-    });
-    const originalTestimonials = [...cmsState.testimonials];
-    onUpdateState({
-      ...cmsState,
-      testimonials: updated
-    });
-
-    if (updatedItem) {
-      try {
-        await saveTestimonial(updatedItem);
-        triggerAlert(updatedItem.approved ? 'Depoimento aprovado e publicado!' : 'Depoimento ocultado do público.');
-      } catch (err) {
-        onUpdateState({
-          ...cmsState,
-          testimonials: originalTestimonials
-        });
-        triggerAlert(`Erro ao atualizar depoimento: ${getErrorMessage(err)}`, 'error');
-      }
-    }
-  };
-
-  const handleDeleteTestimonial = async (id: string) => {
-    if (confirm('Excluir este depoimento permanentemente?')) {
-      const originalTestimonials = [...cmsState.testimonials];
-      onUpdateState({
-        ...cmsState,
-        testimonials: cmsState.testimonials.filter(t => t.id !== id)
-      });
-      try {
-        await deleteTestimonial(id);
-        triggerAlert('Depoimento excluído.');
-      } catch (err) {
-        onUpdateState({
-          ...cmsState,
-          testimonials: originalTestimonials
-        });
-        triggerAlert(`Erro ao excluir depoimento: ${getErrorMessage(err)}`, 'error');
-      }
-    }
-  };
-
   // 5. Blog Posts
   const handleOpenEditPost = (post: BlogPost) => {
     setEditingPost(post);
@@ -1069,6 +1076,250 @@ function extractEmbedUrl(input: string): string {
     }
   };
 
+  // 7. Financial Management Handlers
+  const handleSaveFinancialItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!financialItemForm.name.trim()) {
+      triggerAlert('Digite o nome do serviço ou medicamento.', 'error');
+      return;
+    }
+    const numericPrice = typeof financialItemForm.price === 'number' ? financialItemForm.price : parseFloat(financialItemForm.price || '0');
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      triggerAlert('Digite um preço válido.', 'error');
+      return;
+    }
+
+    const itemToSave: FinancialItem = {
+      id: editingFinancialItem ? editingFinancialItem.id : `fi_${Date.now()}`,
+      name: financialItemForm.name.trim(),
+      category: financialItemForm.category,
+      type: financialItemForm.type,
+      price: numericPrice,
+      description: financialItemForm.description.trim(),
+      dosage: financialItemForm.dosage.trim(),
+      stock: financialItemForm.type === 'medication' ? (typeof financialItemForm.stock === 'number' ? financialItemForm.stock : parseInt(financialItemForm.stock || '0', 10)) : undefined,
+      unit: financialItemForm.unit.trim() || (financialItemForm.type === 'service' ? 'Sessão' : 'Unidade'),
+      code: financialItemForm.code.trim() || `ITEM-${Math.floor(1000 + Math.random() * 9000)}`,
+      updatedAt: new Date().toISOString()
+    };
+
+    const originalItems = [...(cmsState.financialItems || [])];
+    const updatedItems = editingFinancialItem
+      ? originalItems.map(item => item.id === itemToSave.id ? itemToSave : item)
+      : [itemToSave, ...originalItems];
+
+    onUpdateState({
+      ...cmsState,
+      financialItems: updatedItems
+    });
+
+    setShowFinancialItemModal(false);
+    setEditingFinancialItem(null);
+    setFinancialItemForm({
+      name: '',
+      category: 'Serviço',
+      type: 'service',
+      price: '',
+      description: '',
+      dosage: '',
+      stock: '',
+      unit: 'Sessão',
+      code: ''
+    });
+
+    try {
+      await saveFinancialItem(itemToSave);
+      triggerAlert(editingFinancialItem ? 'Item atualizado com sucesso!' : 'Novo item adicionado ao catálogo!');
+    } catch (err) {
+      onUpdateState({ ...cmsState, financialItems: originalItems });
+      triggerAlert(`Erro ao salvar item: ${getErrorMessage(err)}`, 'error');
+    }
+  };
+
+  const handleDeleteFinancialItem = async (id: string, name: string) => {
+    if (confirm(`Excluir o item "${name}" do catálogo financeiro?`)) {
+      const originalItems = [...(cmsState.financialItems || [])];
+      onUpdateState({
+        ...cmsState,
+        financialItems: originalItems.filter(item => item.id !== id)
+      });
+      try {
+        await deleteFinancialItem(id);
+        triggerAlert(`Item "${name}" excluído.`);
+      } catch (err) {
+        onUpdateState({ ...cmsState, financialItems: originalItems });
+        triggerAlert(`Erro ao excluir item: ${getErrorMessage(err)}`, 'error');
+      }
+    }
+  };
+
+  const handleOpenEditFinancialItem = (item: FinancialItem) => {
+    setEditingFinancialItem(item);
+    setFinancialItemForm({
+      name: item.name,
+      category: item.category || 'Serviço',
+      type: item.type,
+      price: item.price,
+      description: item.description || '',
+      dosage: item.dosage || '',
+      stock: item.stock !== undefined ? item.stock : '',
+      unit: item.unit || (item.type === 'service' ? 'Sessão' : 'Unidade'),
+      code: item.code || ''
+    });
+    setShowFinancialItemModal(true);
+  };
+
+  const handleAddBudgetItem = () => {
+    if (!budgetItemSelector.itemId) {
+      triggerAlert('Selecione um item do catálogo para adicionar.', 'error');
+      return;
+    }
+    const catalogItem = cmsState.financialItems?.find(i => i.id === budgetItemSelector.itemId);
+    if (!catalogItem) return;
+
+    const unitPrice = budgetItemSelector.customUnitPrice !== '' ? Number(budgetItemSelector.customUnitPrice) : catalogItem.price;
+    const quantity = Number(budgetItemSelector.quantity) || 1;
+    const total = unitPrice * quantity;
+
+    const newItem: BudgetItem = {
+      itemId: catalogItem.id,
+      name: catalogItem.name,
+      type: catalogItem.type,
+      unitPrice,
+      quantity,
+      total
+    };
+
+    setBudgetForm(prev => ({
+      ...prev,
+      items: [...prev.items, newItem]
+    }));
+
+    setBudgetItemSelector({ itemId: '', quantity: 1, customUnitPrice: '' });
+  };
+
+  const handleRemoveBudgetItem = (index: number) => {
+    setBudgetForm(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSaveBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!budgetForm.clientName.trim() || !budgetForm.petName.trim()) {
+      triggerAlert('Preencha os campos de Tutor e Pet.', 'error');
+      return;
+    }
+    if (budgetForm.items.length === 0) {
+      triggerAlert('Adicione ao menos um serviço ou medicamento ao orçamento.', 'error');
+      return;
+    }
+
+    const subtotal = budgetForm.items.reduce((acc, item) => acc + item.total, 0);
+    const discount = typeof budgetForm.discount === 'number' ? budgetForm.discount : parseFloat(budgetForm.discount || '0');
+    const total = Math.max(0, subtotal - discount);
+
+    const budgetToSave: FinancialBudget = {
+      id: editingBudget ? editingBudget.id : `fb_${Date.now()}`,
+      appointmentId: budgetForm.appointmentId || undefined,
+      clientName: budgetForm.clientName.trim(),
+      petName: budgetForm.petName.trim(),
+      date: budgetForm.date || new Date().toISOString().split('T')[0],
+      items: budgetForm.items,
+      discount,
+      subtotal,
+      total,
+      status: budgetForm.status,
+      paymentMethod: budgetForm.paymentMethod,
+      notes: budgetForm.notes.trim(),
+      createdAt: editingBudget ? editingBudget.createdAt : new Date().toISOString()
+    };
+
+    const originalBudgets = [...(cmsState.financialBudgets || [])];
+    const updatedBudgets = editingBudget
+      ? originalBudgets.map(b => b.id === budgetToSave.id ? budgetToSave : b)
+      : [budgetToSave, ...originalBudgets];
+
+    onUpdateState({
+      ...cmsState,
+      financialBudgets: updatedBudgets
+    });
+
+    setShowBudgetModal(false);
+    setEditingBudget(null);
+    setBudgetForm({
+      appointmentId: '',
+      clientName: '',
+      petName: '',
+      date: new Date().toISOString().split('T')[0],
+      items: [],
+      discount: '',
+      notes: '',
+      status: 'Orçamento',
+      paymentMethod: 'Pix'
+    });
+
+    try {
+      await saveFinancialBudget(budgetToSave);
+      triggerAlert(editingBudget ? 'Orçamento atualizado com sucesso!' : 'Novo orçamento registrado com sucesso!');
+    } catch (err) {
+      onUpdateState({ ...cmsState, financialBudgets: originalBudgets });
+      triggerAlert(`Erro ao salvar orçamento: ${getErrorMessage(err)}`, 'error');
+    }
+  };
+
+  const handleOpenEditBudget = (budget: FinancialBudget) => {
+    setEditingBudget(budget);
+    setBudgetForm({
+      appointmentId: budget.appointmentId || '',
+      clientName: budget.clientName,
+      petName: budget.petName,
+      date: budget.date,
+      items: [...budget.items],
+      discount: budget.discount || '',
+      notes: budget.notes || '',
+      status: budget.status,
+      paymentMethod: budget.paymentMethod || 'Pix'
+    });
+    setShowBudgetModal(true);
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    if (confirm('Deseja realmente excluir este orçamento/fatura?')) {
+      const originalBudgets = [...(cmsState.financialBudgets || [])];
+      onUpdateState({
+        ...cmsState,
+        financialBudgets: originalBudgets.filter(b => b.id !== id)
+      });
+      try {
+        await deleteFinancialBudget(id);
+        triggerAlert('Orçamento excluído com sucesso.');
+      } catch (err) {
+        onUpdateState({ ...cmsState, financialBudgets: originalBudgets });
+        triggerAlert(`Erro ao excluir orçamento: ${getErrorMessage(err)}`, 'error');
+      }
+    }
+  };
+
+  const handleCreateBudgetFromAppointment = (appt: Appointment) => {
+    setEditingBudget(null);
+    setBudgetForm({
+      appointmentId: appt.id,
+      clientName: appt.name,
+      petName: `${appt.species}${appt.breed ? ` (${appt.breed})` : ''}`,
+      date: appt.date || new Date().toISOString().split('T')[0],
+      items: [],
+      discount: '',
+      notes: `Atendimento referente a: ${appt.reason}`,
+      status: 'Orçamento',
+      paymentMethod: 'Pix'
+    });
+    setActiveTab('financial');
+    setFinancialSubTab('budgets');
+    setShowBudgetModal(true);
+  };
+
   // Drag-and-drop file input click helper
   const onButtonClick = () => {
     fileInputRef.current?.click();
@@ -1210,14 +1461,6 @@ function extractEmbedUrl(input: string): string {
           </button>
 
           <button
-            onClick={() => setActiveTab('testimonials')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition cursor-pointer ${activeTab === 'testimonials' ? 'bg-vet-light/20 text-vet-dark' : 'text-neutral-600 hover:bg-neutral-100'}`}
-          >
-            <Users size={18} />
-            Depoimentos
-          </button>
-
-          <button
             onClick={() => setActiveTab('blog')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition cursor-pointer ${activeTab === 'blog' ? 'bg-vet-light/20 text-vet-dark' : 'text-neutral-600 hover:bg-neutral-100'}`}
           >
@@ -1236,6 +1479,21 @@ function extractEmbedUrl(input: string): string {
             {cmsState.appointments.filter(a => a.status === 'Pendente').length > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                 {cmsState.appointments.filter(a => a.status === 'Pendente').length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('financial')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition cursor-pointer ${activeTab === 'financial' ? 'bg-vet-light/20 text-vet-dark font-semibold' : 'text-neutral-600 hover:bg-neutral-100'}`}
+          >
+            <div className="flex items-center gap-3">
+              <DollarSign size={18} className="text-emerald-600" />
+              <span>Área Financeira</span>
+            </div>
+            {(cmsState.financialBudgets || []).filter(b => b.status === 'Pendente' || b.status === 'Orçamento').length > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {(cmsState.financialBudgets || []).filter(b => b.status === 'Pendente' || b.status === 'Orçamento').length}
               </span>
             )}
           </button>
@@ -1271,9 +1529,9 @@ function extractEmbedUrl(input: string): string {
               {activeTab === 'info' && 'Editar Informações do Site'}
               {activeTab === 'services' && 'Gerenciar Serviços Oferecidos'}
               {activeTab === 'media' && 'Galeria e Biblioteca de Mídia'}
-              {activeTab === 'testimonials' && 'Moderação de Depoimentos'}
               {activeTab === 'blog' && 'Redigir e Editar Posts'}
               {activeTab === 'appointments' && 'Visualizador de Consultas'}
+              {activeTab === 'financial' && 'Gestão Financeira & Tabela de Preços'}
             </span>
           </div>
 
@@ -2306,71 +2564,6 @@ function extractEmbedUrl(input: string): string {
           )}
 
           {/* ======================================================== */}
-          {/* TAB: TESTIMONIALS MODERATION */}
-          {/* ======================================================== */}
-          {activeTab === 'testimonials' && (
-            <div className="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-neutral-800 font-display border-b border-neutral-100 pb-3">
-                Moderador de Depoimentos de Clientes
-              </h3>
-
-              <div className="divide-y divide-neutral-100">
-                {cmsState.testimonials.length === 0 ? (
-                  <p className="text-sm text-neutral-400 py-6">Nenhum depoimento cadastrado.</p>
-                ) : (
-                  cmsState.testimonials.map(t => (
-                    <div key={t.id} className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="space-y-1.5 flex-1 max-w-2xl">
-                        <div className="flex items-center gap-2">
-                          <strong className="text-neutral-800 text-sm">{t.name}</strong>
-                          <span className="text-xs text-neutral-400">— Tutor(a) de {t.petName} ({t.petSpecies})</span>
-                          <span className="bg-neutral-100 text-neutral-600 text-[10px] px-2 py-0.5 rounded-full font-mono">
-                            {t.date}
-                          </span>
-                        </div>
-                        <p className="text-neutral-600 text-xs italic leading-relaxed">"{t.content}"</p>
-                        <div className="flex gap-1 text-amber-500">
-                          {Array.from({ length: t.rating }).map((_, i) => (
-                            <span key={i}>★</span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 self-stretch sm:self-center">
-                        <button
-                          onClick={() => handleToggleTestimonialApproval(t.id)}
-                          className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                            t.approved 
-                              ? 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200' 
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {t.approved ? (
-                            <>
-                              <EyeOff size={14} /> Ocultar
-                            </>
-                          ) : (
-                            <>
-                              <Eye size={14} /> Aprovar
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteTestimonial(t.id)}
-                          className="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg transition cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ======================================================== */}
           {/* TAB: BLOG WRITING */}
           {/* ======================================================== */}
           {activeTab === 'blog' && (
@@ -2683,6 +2876,940 @@ function extractEmbedUrl(input: string): string {
                   ))
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* TAB: FINANCIAL MANAGEMENT (Catálogo de Preços e Faturamento) */}
+          {/* ======================================================== */}
+          {activeTab === 'financial' && (
+            <div className="space-y-6">
+              {/* FINANCIAL SUMMARY CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Total Paid / Faturado */}
+                <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">Total Faturado</span>
+                    <span className="text-2xl font-bold font-display text-emerald-600 mt-1 block">
+                      R$ {(cmsState.financialBudgets || [])
+                        .filter(b => b.status === 'Pago')
+                        .reduce((sum, b) => sum + b.total, 0)
+                        .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[11px] text-neutral-400 mt-1 block">
+                      {(cmsState.financialBudgets || []).filter(b => b.status === 'Pago').length} orçamentos pagos
+                    </span>
+                  </div>
+                  <div className="bg-emerald-50 text-emerald-600 p-3 rounded-xl">
+                    <DollarSign size={24} />
+                  </div>
+                </div>
+
+                {/* Total Pending / Em Aberto */}
+                <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">Em Aberto</span>
+                    <span className="text-2xl font-bold font-display text-amber-600 mt-1 block">
+                      R$ {(cmsState.financialBudgets || [])
+                        .filter(b => b.status === 'Pendente' || b.status === 'Orçamento')
+                        .reduce((sum, b) => sum + b.total, 0)
+                        .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-[11px] text-neutral-400 mt-1 block">
+                      {(cmsState.financialBudgets || []).filter(b => b.status === 'Pendente' || b.status === 'Orçamento').length} pendentes
+                    </span>
+                  </div>
+                  <div className="bg-amber-50 text-amber-600 p-3 rounded-xl">
+                    <Clock size={24} />
+                  </div>
+                </div>
+
+                {/* Total Catalog Items */}
+                <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">Catálogo de Itens</span>
+                    <span className="text-2xl font-bold font-display text-neutral-800 mt-1 block">
+                      {(cmsState.financialItems || []).length} Cadastrados
+                    </span>
+                    <span className="text-[11px] text-neutral-400 mt-1 block">
+                      {(cmsState.financialItems || []).filter(i => i.type === 'service').length} Serviços • {(cmsState.financialItems || []).filter(i => i.type === 'medication').length} Medicamentos
+                    </span>
+                  </div>
+                  <div className="bg-blue-50 text-blue-600 p-3 rounded-xl">
+                    <Tag size={24} />
+                  </div>
+                </div>
+
+                {/* Stock alert */}
+                <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider block">Estoque de Medicamentos</span>
+                    <span className="text-2xl font-bold font-display text-neutral-800 mt-1 block">
+                      {(cmsState.financialItems || [])
+                        .filter(i => i.type === 'medication' && i.stock !== undefined)
+                        .reduce((acc, i) => acc + (i.stock || 0), 0)} Unidades
+                    </span>
+                    <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
+                      {(cmsState.financialItems || []).filter(i => i.type === 'medication' && (i.stock || 0) <= 5).length > 0 
+                        ? `${(cmsState.financialItems || []).filter(i => i.type === 'medication' && (i.stock || 0) <= 5).length} itens com estoque baixo`
+                        : 'Estoque regular'}
+                    </span>
+                  </div>
+                  <div className="bg-purple-50 text-purple-600 p-3 rounded-xl">
+                    <Package size={24} />
+                  </div>
+                </div>
+              </div>
+
+              {/* NAVIGATION BETWEEN SUB-TABS & ACTIONS */}
+              <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex bg-neutral-100 p-1 rounded-xl w-full sm:w-auto">
+                  <button
+                    onClick={() => setFinancialSubTab('catalog')}
+                    className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
+                      financialSubTab === 'catalog' ? 'bg-white text-vet-dark shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    <Tag size={15} /> Catálogo & Tabela de Preços
+                  </button>
+                  <button
+                    onClick={() => setFinancialSubTab('budgets')}
+                    className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
+                      financialSubTab === 'budgets' ? 'bg-white text-vet-dark shadow-xs' : 'text-neutral-600 hover:text-neutral-900'
+                    }`}
+                  >
+                    <Receipt size={15} /> Orçamentos & Lançamentos
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                  {financialSubTab === 'catalog' ? (
+                    <button
+                      onClick={() => {
+                        setEditingFinancialItem(null);
+                        setFinancialItemForm({
+                          name: '',
+                          category: 'Serviço',
+                          type: 'service',
+                          price: '',
+                          description: '',
+                          dosage: '',
+                          stock: '',
+                          unit: 'Sessão',
+                          code: ''
+                        });
+                        setShowFinancialItemModal(true);
+                      }}
+                      className="w-full sm:w-auto bg-vet-dark hover:bg-vet-leaf text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={16} /> Novo Serviço / Medicamento
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingBudget(null);
+                        setBudgetForm({
+                          appointmentId: '',
+                          clientName: '',
+                          petName: '',
+                          date: new Date().toISOString().split('T')[0],
+                          items: [],
+                          discount: '',
+                          notes: '',
+                          status: 'Orçamento',
+                          paymentMethod: 'Pix'
+                        });
+                        setShowBudgetModal(true);
+                      }}
+                      className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={16} /> Gerar Novo Orçamento
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SUB-TAB 1: CATALOG TABLE */}
+              {financialSubTab === 'catalog' && (
+                <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden p-6 space-y-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h3 className="font-bold text-neutral-800 font-display text-base">Tabela de Preços e Medicamentos</h3>
+                      <p className="text-xs text-neutral-500">Cadastre e ajuste os valores de consultas, procedimentos anestésicos, vacinas e medicamentos.</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                      <div className="relative flex-1 md:w-64">
+                        <Search size={14} className="absolute left-3 top-3 text-neutral-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar por nome ou código..."
+                          value={financialSearch}
+                          onChange={e => setFinancialSearch(e.target.value)}
+                          className="w-full border border-neutral-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                        />
+                      </div>
+
+                      <select
+                        value={financialCategoryFilter}
+                        onChange={e => setFinancialCategoryFilter(e.target.value)}
+                        className="border border-neutral-200 rounded-xl px-3 py-2 text-xs text-neutral-700 bg-white focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                      >
+                        <option value="Todos">Todas Categoria</option>
+                        <option value="Serviço">Serviços</option>
+                        <option value="Medicamento">Medicamentos</option>
+                        <option value="Procedimento">Procedimentos</option>
+                        <option value="Insumo">Insumos</option>
+                        <option value="Exame">Exames</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* ITEMS TABLE */}
+                  <div className="overflow-x-auto border border-neutral-100 rounded-xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-neutral-50 text-[11px] font-bold text-neutral-500 uppercase tracking-wider border-b border-neutral-200">
+                          <th className="py-3 px-4">Código</th>
+                          <th className="py-3 px-4">Item / Nome</th>
+                          <th className="py-3 px-4">Tipo & Categoria</th>
+                          <th className="py-3 px-4">Dosagem / Detalhes</th>
+                          <th className="py-3 px-4">Estoque</th>
+                          <th className="py-3 px-4 text-right">Valor Unitário</th>
+                          <th className="py-3 px-4 text-center">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100 text-xs">
+                        {(cmsState.financialItems || [])
+                          .filter(item => {
+                            const matchSearch = item.name.toLowerCase().includes(financialSearch.toLowerCase()) || 
+                                                (item.code && item.code.toLowerCase().includes(financialSearch.toLowerCase()));
+                            const matchCat = financialCategoryFilter === 'Todos' || item.category === financialCategoryFilter;
+                            return matchSearch && matchCat;
+                          })
+                          .length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="text-center py-8 text-neutral-400">
+                                Nenhum item cadastrado ou encontrado com os filtros selecionados.
+                              </td>
+                            </tr>
+                          ) : (
+                            (cmsState.financialItems || [])
+                              .filter(item => {
+                                const matchSearch = item.name.toLowerCase().includes(financialSearch.toLowerCase()) || 
+                                                    (item.code && item.code.toLowerCase().includes(financialSearch.toLowerCase()));
+                                const matchCat = financialCategoryFilter === 'Todos' || item.category === financialCategoryFilter;
+                                return matchSearch && matchCat;
+                              })
+                              .map(item => (
+                                <tr key={item.id} className="hover:bg-neutral-50/80 transition">
+                                  <td className="py-3 px-4 font-mono text-[11px] text-neutral-400 font-semibold">{item.code || 'N/A'}</td>
+                                  <td className="py-3 px-4 font-bold text-neutral-800">
+                                    {item.name}
+                                    {item.description && <p className="text-[11px] text-neutral-400 font-normal line-clamp-1">{item.description}</p>}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      item.type === 'service' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                                    }`}>
+                                      {item.category || (item.type === 'service' ? 'Serviço' : 'Medicamento')}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-neutral-600">
+                                    {item.dosage ? item.dosage : item.unit || '—'}
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {item.type === 'medication' && item.stock !== undefined ? (
+                                      <span className={`font-semibold ${item.stock <= 5 ? 'text-red-600 font-bold' : 'text-neutral-700'}`}>
+                                        {item.stock} {item.unit || 'unid'}
+                                      </span>
+                                    ) : (
+                                      <span className="text-neutral-300">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-bold text-emerald-700 font-mono text-sm">
+                                    R$ {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() => handleOpenEditFinancialItem(item)}
+                                        className="p-1.5 text-neutral-500 hover:text-vet-dark hover:bg-neutral-100 rounded-lg transition cursor-pointer"
+                                        title="Editar"
+                                      >
+                                        <Edit size={14} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteFinancialItem(item.id, item.name)}
+                                        className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                        title="Excluir"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                          )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SUB-TAB 2: BUDGETS & INVOICES LIST */}
+              {financialSubTab === 'budgets' && (
+                <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden p-6 space-y-4">
+                  <div>
+                    <h3 className="font-bold text-neutral-800 font-display text-base">Orçamentos e Faturas do Consultório</h3>
+                    <p className="text-xs text-neutral-500">Acompanhe orçamentos gerados, status de pagamentos e imprima recibos de atendimento.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(cmsState.financialBudgets || []).length === 0 ? (
+                      <p className="text-center py-8 text-neutral-400 text-sm">Nenhum orçamento cadastrado até o momento.</p>
+                    ) : (
+                      (cmsState.financialBudgets || []).map(budget => (
+                        <div 
+                          key={budget.id} 
+                          className={`border rounded-xl p-5 shadow-xs space-y-4 transition ${
+                            budget.status === 'Pago' ? 'border-emerald-200 bg-emerald-50/10' :
+                            budget.status === 'Pendente' ? 'border-amber-200 bg-amber-50/10' :
+                            budget.status === 'Cancelado' ? 'border-red-100 bg-red-50/10' : 'border-neutral-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex flex-wrap justify-between items-start gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono uppercase font-bold text-neutral-400">
+                                  Nº {budget.id} • Data: {budget.date}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  budget.status === 'Pago' ? 'bg-emerald-100 text-emerald-800' :
+                                  budget.status === 'Pendente' ? 'bg-amber-100 text-amber-800' :
+                                  budget.status === 'Cancelado' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {budget.status}
+                                </span>
+                              </div>
+                              <h4 className="font-bold text-neutral-800 font-display text-base mt-1">
+                                Tutor: {budget.clientName} <span className="text-neutral-400 font-normal">| Paciente: {budget.petName}</span>
+                              </h4>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={() => setSelectedBudgetForReceipt(budget)}
+                                className="bg-neutral-800 hover:bg-neutral-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                              >
+                                <Printer size={14} /> Ver / Imprimir Recibo
+                              </button>
+                              <button
+                                onClick={() => handleOpenEditBudget(budget)}
+                                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit size={14} /> Editar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteBudget(budget.id)}
+                                className="bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-lg cursor-pointer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Items breakdown list */}
+                          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/80 text-xs space-y-1.5">
+                            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Itens Incluídos:</span>
+                            <div className="divide-y divide-neutral-200/60">
+                              {budget.items.map((item, idx) => (
+                                <div key={idx} className="py-1 flex justify-between items-center text-neutral-700">
+                                  <span>
+                                    <strong className="font-semibold">{item.quantity}x</strong> {item.name}
+                                    <span className="text-[10px] text-neutral-400 ml-2">({item.type === 'service' ? 'Serviço' : 'Medicamento'})</span>
+                                  </span>
+                                  <span className="font-mono font-medium">
+                                    R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Totals summary */}
+                            <div className="pt-2 mt-2 border-t border-neutral-200 flex flex-wrap justify-between items-center text-xs">
+                              <div className="text-neutral-500 space-x-3">
+                                <span>Forma de Pagamento: <strong className="text-neutral-700">{budget.paymentMethod || 'Pix'}</strong></span>
+                                {budget.discount > 0 && (
+                                  <span>Desconto: <strong className="text-red-600">-R$ {budget.discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-neutral-500 mr-2">Valor Total:</span>
+                                <strong className="text-base font-bold font-mono text-emerald-700">
+                                  R$ {budget.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          {budget.notes && (
+                            <p className="text-xs text-neutral-500 italic bg-white p-2.5 rounded-lg border border-neutral-100">
+                              <strong className="not-italic text-neutral-600 font-semibold">Observações:</strong> {budget.notes}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL 1: ADD/EDIT FINANCIAL ITEM (CATALOG) */}
+              {showFinancialItemModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-5"
+                  >
+                    <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                      <h3 className="font-bold text-neutral-800 font-display text-lg">
+                        {editingFinancialItem ? 'Editar Item do Catálogo' : 'Cadastrar Item no Catálogo'}
+                      </h3>
+                      <button
+                        onClick={() => { setShowFinancialItemModal(false); setEditingFinancialItem(null); }}
+                        className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveFinancialItem} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Nome do Item *</label>
+                        <input
+                          type="text"
+                          required
+                          value={financialItemForm.name}
+                          onChange={e => setFinancialItemForm({ ...financialItemForm, name: e.target.value })}
+                          placeholder="Ex: Consulta Anestésica Pré-Operatória / Dipirona 500mg"
+                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Tipo de Item</label>
+                          <select
+                            value={financialItemForm.type}
+                            onChange={e => setFinancialItemForm({ 
+                              ...financialItemForm, 
+                              type: e.target.value as 'service' | 'medication',
+                              category: e.target.value === 'service' ? 'Serviço' : 'Medicamento'
+                            })}
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                          >
+                            <option value="service">Serviço / Procedimento</option>
+                            <option value="medication">Medicamento / Insumo</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Categoria</label>
+                          <select
+                            value={financialItemForm.category}
+                            onChange={e => setFinancialItemForm({ ...financialItemForm, category: e.target.value as any })}
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                          >
+                            <option value="Serviço">Serviço</option>
+                            <option value="Medicamento">Medicamento</option>
+                            <option value="Procedimento">Procedimento</option>
+                            <option value="Insumo">Insumo</option>
+                            <option value="Exame">Exame</option>
+                            <option value="Outros">Outros</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Valor Unitário (R$) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            value={financialItemForm.price}
+                            onChange={e => setFinancialItemForm({ ...financialItemForm, price: e.target.value })}
+                            placeholder="250.00"
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-emerald-800 focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Unidade / Medida</label>
+                          <input
+                            type="text"
+                            value={financialItemForm.unit}
+                            onChange={e => setFinancialItemForm({ ...financialItemForm, unit: e.target.value })}
+                            placeholder="Ex: Sessão, Frasco, Ampola, Dose"
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Código Ref.</label>
+                          <input
+                            type="text"
+                            value={financialItemForm.code}
+                            onChange={e => setFinancialItemForm({ ...financialItemForm, code: e.target.value })}
+                            placeholder="SERV-001"
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+
+                        {financialItemForm.type === 'medication' ? (
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Estoque Atual</label>
+                            <input
+                              type="number"
+                              value={financialItemForm.stock}
+                              onChange={e => setFinancialItemForm({ ...financialItemForm, stock: e.target.value })}
+                              placeholder="10"
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Dosagem Padrão</label>
+                            <input
+                              type="text"
+                              value={financialItemForm.dosage}
+                              onChange={e => setFinancialItemForm({ ...financialItemForm, dosage: e.target.value })}
+                              placeholder="Ex: Conforme peso"
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Descrição Detalhada</label>
+                        <textarea
+                          rows={2}
+                          value={financialItemForm.description}
+                          onChange={e => setFinancialItemForm({ ...financialItemForm, description: e.target.value })}
+                          placeholder="Descreva o que está incluso no procedimento ou as especificações do medicamento..."
+                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-3 border-t border-neutral-100">
+                        <button
+                          type="button"
+                          onClick={() => { setShowFinancialItemModal(false); setEditingFinancialItem(null); }}
+                          className="px-4 py-2 bg-neutral-200 text-neutral-700 hover:bg-neutral-300 rounded-lg text-xs font-semibold cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 bg-vet-dark hover:bg-vet-leaf text-white rounded-lg text-xs font-bold shadow-md cursor-pointer"
+                        >
+                          Salvar Item
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
+
+              {/* MODAL 2: GENERATE / EDIT BUDGET & INVOICE */}
+              {showBudgetModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-neutral-200 space-y-5"
+                  >
+                    <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                      <h3 className="font-bold text-neutral-800 font-display text-lg">
+                        {editingBudget ? 'Editar Orçamento / Fatura' : 'Gerar Orçamento / Fatura de Atendimento'}
+                      </h3>
+                      <button
+                        onClick={() => { setShowBudgetModal(false); setEditingBudget(null); }}
+                        className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveBudget} className="space-y-4">
+                      {/* Header Client / Pet Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Nome do Tutor (Cliente) *</label>
+                          <input
+                            type="text"
+                            required
+                            value={budgetForm.clientName}
+                            onChange={e => setBudgetForm({ ...budgetForm, clientName: e.target.value })}
+                            placeholder="Ex: Clarice Antunes"
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Nome do Paciente (Pet) *</label>
+                          <input
+                            type="text"
+                            required
+                            value={budgetForm.petName}
+                            onChange={e => setBudgetForm({ ...budgetForm, petName: e.target.value })}
+                            placeholder="Ex: Thor (Cão - Golden)"
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Data do Atendimento</label>
+                          <input
+                            type="date"
+                            required
+                            value={budgetForm.date}
+                            onChange={e => setBudgetForm({ ...budgetForm, date: e.target.value })}
+                            className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                          />
+                        </div>
+                      </div>
+
+                      {/* ITEM SELECTOR BAR */}
+                      <div className="bg-neutral-50 p-3.5 rounded-xl border border-neutral-200 space-y-2">
+                        <label className="block text-xs font-bold text-neutral-700 uppercase">Adicionar Serviços ou Medicamentos do Catálogo</label>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                          <div className="sm:col-span-6">
+                            <select
+                              value={budgetItemSelector.itemId}
+                              onChange={e => {
+                                const id = e.target.value;
+                                const catItem = cmsState.financialItems?.find(i => i.id === id);
+                                setBudgetItemSelector({
+                                  itemId: id,
+                                  quantity: 1,
+                                  customUnitPrice: catItem ? catItem.price : ''
+                                });
+                              }}
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                            >
+                              <option value="">-- Selecione do Catálogo --</option>
+                              {(cmsState.financialItems || []).map(item => (
+                                <option key={item.id} value={item.id}>
+                                  [{item.category}] {item.name} — R$ {item.price.toFixed(2)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="Qtd"
+                              value={budgetItemSelector.quantity}
+                              onChange={e => setBudgetItemSelector({ ...budgetItemSelector, quantity: parseInt(e.target.value || '1', 10) })}
+                              className="w-full border border-neutral-300 rounded-lg px-2.5 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-vet-light"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="R$ Unit"
+                              value={budgetItemSelector.customUnitPrice}
+                              onChange={e => setBudgetItemSelector({ ...budgetItemSelector, customUnitPrice: e.target.value })}
+                              className="w-full border border-neutral-300 rounded-lg px-2.5 py-2 text-xs bg-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-vet-light"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <button
+                              type="button"
+                              onClick={handleAddBudgetItem}
+                              className="w-full bg-vet-dark hover:bg-vet-leaf text-white py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Plus size={14} /> Incluir
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ADDED ITEMS LIST */}
+                      <div className="border border-neutral-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-100 font-bold text-neutral-600 border-b border-neutral-200">
+                            <tr>
+                              <th className="py-2 px-3">Item</th>
+                              <th className="py-2 px-3 text-center">Qtd</th>
+                              <th className="py-2 px-3 text-right">Unitário</th>
+                              <th className="py-2 px-3 text-right">Total</th>
+                              <th className="py-2 px-2 text-center">Remover</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100">
+                            {budgetForm.items.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="text-center py-6 text-neutral-400">
+                                  Nenhum item adicionado ainda. Selecione acima para compor a fatura.
+                                </td>
+                              </tr>
+                            ) : (
+                              budgetForm.items.map((item, idx) => (
+                                <tr key={idx} className="hover:bg-neutral-50">
+                                  <td className="py-2 px-3 font-semibold text-neutral-800">{item.name}</td>
+                                  <td className="py-2 px-3 text-center font-bold text-neutral-700">{item.quantity}</td>
+                                  <td className="py-2 px-3 text-right font-mono">
+                                    R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
+                                    R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-2 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBudgetItem(idx)}
+                                      className="text-neutral-400 hover:text-red-600 p-1 rounded"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* CALCULATIONS BAR */}
+                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Desconto Especial (R$)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={budgetForm.discount}
+                              onChange={e => setBudgetForm({ ...budgetForm, discount: e.target.value })}
+                              placeholder="0.00"
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-xs font-mono text-red-600 font-bold focus:outline-none focus:ring-1 focus:ring-vet-light"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Forma de Pagamento</label>
+                            <select
+                              value={budgetForm.paymentMethod}
+                              onChange={e => setBudgetForm({ ...budgetForm, paymentMethod: e.target.value as any })}
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                            >
+                              <option value="Pix">Pix</option>
+                              <option value="Dinheiro">Dinheiro Espécie</option>
+                              <option value="Cartão de Crédito">Cartão de Crédito</option>
+                              <option value="Cartão de Débito">Cartão de Débito</option>
+                              <option value="Transferência">Transferência Bancária</option>
+                              <option value="Outro">Outro</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-neutral-600 uppercase mb-1">Status da Fatura</label>
+                            <select
+                              value={budgetForm.status}
+                              onChange={e => setBudgetForm({ ...budgetForm, status: e.target.value as any })}
+                              className="w-full border border-neutral-300 rounded-lg px-3 py-1.5 text-xs font-bold bg-white focus:outline-none focus:ring-1 focus:ring-vet-light cursor-pointer"
+                            >
+                              <option value="Orçamento">Orçamento</option>
+                              <option value="Pendente">Pendente</option>
+                              <option value="Pago">Pago</option>
+                              <option value="Cancelado">Cancelado</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Totals Summary Line */}
+                        <div className="flex justify-between items-center pt-2 border-t border-neutral-200">
+                          <span className="text-xs text-neutral-500 font-medium">
+                            Subtotal: R$ {budgetForm.items.reduce((acc, i) => acc + i.total, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-neutral-700 uppercase mr-2">Valor Final:</span>
+                            <strong className="text-xl font-bold font-mono text-emerald-700">
+                              R$ {Math.max(0, budgetForm.items.reduce((acc, i) => acc + i.total, 0) - (Number(budgetForm.discount) || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-neutral-600 uppercase mb-1">Observações do Recibo / Recomendações</label>
+                        <textarea
+                          rows={2}
+                          value={budgetForm.notes}
+                          onChange={e => setBudgetForm({ ...budgetForm, notes: e.target.value })}
+                          placeholder="Instruções para o tutor, condições de retorno ou chave Pix..."
+                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-3 border-t border-neutral-100">
+                        <button
+                          type="button"
+                          onClick={() => { setShowBudgetModal(false); setEditingBudget(null); }}
+                          className="px-4 py-2 bg-neutral-200 text-neutral-700 hover:bg-neutral-300 rounded-lg text-xs font-semibold cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md cursor-pointer"
+                        >
+                          Salvar Orçamento
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
+
+              {/* MODAL 3: PRINTABLE RECEIPT / QUOTE VIEW */}
+              {selectedBudgetForReceipt && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-2xl max-w-xl w-full p-8 shadow-2xl border border-neutral-200 space-y-6 relative print:p-0 print:border-none print:shadow-none"
+                  >
+                    {/* Action buttons bar */}
+                    <div className="flex justify-between items-center border-b border-neutral-200 pb-4 print:hidden">
+                      <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                        Visualização de Recibo / Comprovante
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => window.print()}
+                          className="bg-vet-dark text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-vet-leaf transition cursor-pointer"
+                        >
+                          <Printer size={15} /> Imprimir / Salvar PDF
+                        </button>
+                        <button
+                          onClick={() => setSelectedBudgetForReceipt(null)}
+                          className="text-neutral-400 hover:text-neutral-700 p-1.5 rounded-lg"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* RECEIPT CONTENT AREA (CLEAN PRINT LAYOUT) */}
+                    <div className="space-y-6 text-neutral-800">
+                      {/* Header / Clinic Logo */}
+                      <div className="text-center border-b border-neutral-200 pb-5 space-y-1">
+                        <h2 className="text-2xl font-bold font-display text-vet-dark">{cmsState.info.name}</h2>
+                        <p className="text-xs text-neutral-600 font-medium">{cmsState.info.specialty}</p>
+                        <p className="text-[11px] text-neutral-400">
+                          CRMV Ativo • {cmsState.info.phone} • WhatsApp: {cmsState.info.whatsapp}
+                        </p>
+                        <p className="text-[11px] text-neutral-400">{cmsState.info.address}</p>
+                      </div>
+
+                      {/* Receipt Details Box */}
+                      <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-xs grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-neutral-400 block font-semibold text-[10px] uppercase">Tutor / Cliente:</span>
+                          <strong className="text-neutral-800 text-sm">{selectedBudgetForReceipt.clientName}</strong>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 block font-semibold text-[10px] uppercase">Paciente / Pet:</span>
+                          <strong className="text-neutral-800 text-sm">{selectedBudgetForReceipt.petName}</strong>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 block font-semibold text-[10px] uppercase">Data da Emissão:</span>
+                          <span>{selectedBudgetForReceipt.date}</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-400 block font-semibold text-[10px] uppercase">Status / Recibo Nº:</span>
+                          <span className="font-mono font-bold text-vet-dark">#{selectedBudgetForReceipt.id} ({selectedBudgetForReceipt.status})</span>
+                        </div>
+                      </div>
+
+                      {/* Items Table */}
+                      <div>
+                        <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">Discriminação dos Serviços e Medicamentos</h4>
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="border-b border-neutral-300 text-neutral-500 font-bold uppercase text-[10px]">
+                              <th className="py-2">Item</th>
+                              <th className="py-2 text-center">Qtd</th>
+                              <th className="py-2 text-right">Unitário</th>
+                              <th className="py-2 text-right">Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-200">
+                            {selectedBudgetForReceipt.items.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="py-2.5 font-medium text-neutral-800">{item.name}</td>
+                                <td className="py-2.5 text-center">{item.quantity}</td>
+                                <td className="py-2.5 text-right font-mono text-neutral-600">
+                                  R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </td>
+                                <td className="py-2.5 text-right font-mono font-bold text-neutral-800">
+                                  R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Totals Breakdown */}
+                      <div className="border-t border-neutral-300 pt-4 text-xs space-y-1">
+                        <div className="flex justify-between text-neutral-600">
+                          <span>Subtotal:</span>
+                          <span className="font-mono">R$ {selectedBudgetForReceipt.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        {selectedBudgetForReceipt.discount > 0 && (
+                          <div className="flex justify-between text-red-600">
+                            <span>Desconto Concedido:</span>
+                            <span className="font-mono">-R$ {selectedBudgetForReceipt.discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-base font-bold text-neutral-900 pt-2 border-t border-neutral-200">
+                          <span>VALOR TOTAL:</span>
+                          <span className="font-mono text-emerald-700">R$ {selectedBudgetForReceipt.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+
+                      {/* Payment & Notes Footer */}
+                      <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100 text-xs space-y-2 text-emerald-900">
+                        <p className="font-bold">Forma de Pagamento: {selectedBudgetForReceipt.paymentMethod || 'Pix'}</p>
+                        {selectedBudgetForReceipt.notes && (
+                          <p className="italic text-emerald-800 text-[11px]">
+                            Observações: {selectedBudgetForReceipt.notes}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-center pt-6 text-[10px] text-neutral-400 border-t border-neutral-100 space-y-0.5">
+                        <p>Dra. Júlia Guaraldo — Anestesiologia & Medicina Veterinária Domiciliar</p>
+                        <p>Obrigado pela confiança no cuidado com seu pet!</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
             </div>
           )}
 

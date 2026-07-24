@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CMSState, Service, BlogPost, MediaItem, Testimonial, Appointment } from '../types';
-import { saveAppointment, saveTestimonial, saveBlogPost } from '../lib/firestoreSync';
+import { CMSState, Service, BlogPost, MediaItem, Appointment } from '../types';
+import { saveAppointment, saveBlogPost } from '../lib/firestoreSync';
 import { 
   Home, 
   Activity, 
@@ -89,9 +89,9 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active sub-page state for separated page layout
-  const [currentPage, setCurrentPage] = useState<'home' | 'quem-sou' | 'servicos' | 'galeria' | 'depoimentos' | 'blog' | 'contato' | 'agendamento'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'quem-sou' | 'servicos' | 'galeria' | 'blog' | 'contato' | 'agendamento'>('home');
 
-  const navigateToPage = (page: 'home' | 'quem-sou' | 'servicos' | 'galeria' | 'depoimentos' | 'blog' | 'contato' | 'agendamento') => {
+  const navigateToPage = (page: 'home' | 'quem-sou' | 'servicos' | 'galeria' | 'blog' | 'contato' | 'agendamento') => {
     setCurrentPage(page);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -108,17 +108,6 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
 
   // Interactive Lightbox State
   const [lightboxMedia, setLightboxMedia] = useState<MediaItem | null>(null);
-
-  // Testimonial submission form state
-  const [showTestimonialModal, setShowTestimonialModal] = useState(false);
-  const [testimonialForm, setTestimonialForm] = useState({
-    name: '',
-    petName: '',
-    petSpecies: 'Cão' as 'Cão' | 'Gato' | 'Outros',
-    rating: 5,
-    content: ''
-  });
-  const [testimonialSubmitted, setTestimonialSubmitted] = useState(false);
 
   // Appointment scheduling form state
   const [appointmentForm, setAppointmentForm] = useState({
@@ -236,37 +225,6 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
     }
   };
 
-  // Submit testimonial
-  const handleAddTestimonial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newTestimonial: Testimonial = {
-      id: 'T' + Math.floor(1000 + Math.random() * 9000),
-      ...testimonialForm,
-      date: new Date().toISOString().split('T')[0],
-      approved: false // requires admin approval (CMS moderates this!)
-    };
-
-    onUpdateState({
-      ...cmsState,
-      testimonials: [...cmsState.testimonials, newTestimonial]
-    });
-
-    setTestimonialSubmitted(true);
-
-    try {
-      await saveTestimonial(newTestimonial);
-    } catch (e) {
-      console.error("Failed to save testimonial in Firestore:", e);
-    }
-
-    setTimeout(() => {
-      setTestimonialSubmitted(false);
-      setShowTestimonialModal(false);
-      setTestimonialForm({ name: '', petName: '', petSpecies: 'Cão', rating: 5, content: '' });
-    }, 4000);
-  };
-
   // Render Service Icon
   const renderIcon = (iconName: string) => {
     switch (iconName) {
@@ -359,12 +317,6 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
             Galeria
           </button>
           <button 
-            onClick={() => navigateToPage('depoimentos')} 
-            className={`transition cursor-pointer py-1 border-b-2 ${currentPage === 'depoimentos' ? 'text-vet-leaf border-vet-leaf' : 'text-neutral-500 hover:text-vet-dark border-transparent'}`}
-          >
-            Depoimentos
-          </button>
-          <button 
             onClick={() => navigateToPage('blog')} 
             className={`transition cursor-pointer py-1 border-b-2 ${currentPage === 'blog' ? 'text-vet-leaf border-vet-leaf' : 'text-neutral-500 hover:text-vet-dark border-transparent'}`}
           >
@@ -417,7 +369,6 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
             <button onClick={() => navigateToPage('quem-sou')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'quem-sou' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Quem Sou</button>
             <button onClick={() => navigateToPage('servicos')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'servicos' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Serviços</button>
             <button onClick={() => navigateToPage('galeria')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'galeria' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Galeria</button>
-            <button onClick={() => navigateToPage('depoimentos')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'depoimentos' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Depoimentos</button>
             <button onClick={() => navigateToPage('blog')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'blog' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Blog</button>
             <button onClick={() => navigateToPage('contato')} className={`py-2 text-left border-b border-neutral-100 ${currentPage === 'contato' ? 'text-vet-leaf font-bold' : 'text-neutral-600 hover:text-vet-dark'}`}>Contatos</button>
             
@@ -595,24 +546,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
                 </span>
               </div>
 
-              {/* Card 4: Depoimentos */}
-              <div 
-                onClick={() => navigateToPage('depoimentos')}
-                className="group bg-white p-6 rounded-2xl border border-neutral-150 hover:border-vet-light/45 hover:shadow-[0_15px_30px_rgba(142,187,99,0.06)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-56"
-              >
-                <div className="space-y-3">
-                  <div className="bg-vet-light/10 text-vet-dark p-3 rounded-xl w-fit group-hover:bg-vet-leaf group-hover:text-white transition duration-300">
-                    <MessageSquare size={18} />
-                  </div>
-                  <h3 className="font-serif text-lg font-semibold text-neutral-800 group-hover:text-vet-leaf transition">Depoimentos</h3>
-                  <p className="text-xs text-neutral-500 font-light leading-relaxed">Leia o carinho e relatos dos tutores que confiaram a vida de seus pets aos nossos cuidados.</p>
-                </div>
-                <span className="text-[10px] font-bold text-vet-dark uppercase tracking-wider flex items-center gap-1.5 self-end">
-                  Ler Depoimentos <ArrowRight size={12} className="group-hover:translate-x-1 transition" />
-                </span>
-              </div>
-
-              {/* Card 5: Blog */}
+              {/* Card 4: Blog */}
               <div 
                 onClick={() => navigateToPage('blog')}
                 className="group bg-white p-6 rounded-2xl border border-neutral-150 hover:border-vet-light/45 hover:shadow-[0_15px_30px_rgba(142,187,99,0.06)] transition-all duration-300 cursor-pointer flex flex-col justify-between h-56"
@@ -870,67 +804,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
         </>
       )}
 
-      {/* ----------------- 5. DEPOIMENTOS (TESTIMONIALS) ----------------- */}
-      {currentPage === 'depoimentos' && (
-        <>
-          {renderPageHeader("O Que Dizem os Tutores", "Leia relatos sinceros, carinhosos e reais de quem confiou a vida e o bem-estar de seus cães e gatos ao nosso atendimento especializado.")}
-          <section id="depoimentos" className="bg-vet-bg py-20 md:py-28 px-6 md:px-12">
-            <div className="w-full max-w-7xl mx-auto space-y-12">
-              
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div className="space-y-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-vet-dark block">Aprovado pelos tutores</span>
-                  <h2 className="text-3xl md:text-4xl font-light font-serif text-neutral-800">
-                    O que dizem sobre nós
-                  </h2>
-                  <p className="text-sm text-neutral-500 font-light">
-                    Comentários reais de quem vivenciou o carinho e o profissionalismo no atendimento veterinário.
-                  </p>
-                </div>
 
-                <button
-                  onClick={() => setShowTestimonialModal(true)}
-                  className="bg-vet-leaf hover:bg-vet-dark text-white px-5 py-3 rounded-full text-xs font-semibold shadow-[0_6px_15px_rgba(142,187,99,0.25)] transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus size={16} /> Deixar Meu Depoimento
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {approvedTestimonials.length === 0 ? (
-                  <p className="text-sm text-neutral-400 py-6 text-center col-span-full">Ainda não há depoimentos publicados no momento.</p>
-                ) : (
-                  approvedTestimonials.map(t => (
-                    <div key={t.id} className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-xs flex flex-col justify-between">
-                      <div className="space-y-4">
-                        <div className="flex gap-1 text-amber-400 text-sm">
-                          {Array.from({ length: t.rating }).map((_, i) => (
-                            <Star key={i} size={16} fill="currentColor" />
-                          ))}
-                        </div>
-                        <p className="text-xs text-neutral-600 italic leading-relaxed">
-                          "{t.content}"
-                        </p>
-                      </div>
-
-                      <div className="mt-6 pt-4 border-t border-neutral-100 flex justify-between items-center text-xs">
-                        <div>
-                          <strong className="text-neutral-800">{t.name}</strong>
-                          <p className="text-[10px] text-neutral-400">Tutor(a) de {t.petName} ({t.petSpecies})</p>
-                        </div>
-                        <span className="bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-400 text-[10px] font-mono px-2 py-0.5">
-                          {t.date}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-            </div>
-          </section>
-        </>
-      )}
 
       {/* ----------------- 6. BLOG SECTION ----------------- */}
       {currentPage === 'blog' && (
@@ -1603,120 +1477,7 @@ export default function MainSite({ cmsState, onUpdateState, onOpenAdmin }: MainS
         )}
       </AnimatePresence>
 
-      {/* ======================================================== */}
-      {/* TESTIMONIAL CREATOR SUB-MODAL */}
-      {/* ======================================================== */}
-      <AnimatePresence>
-        {showTestimonialModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl border border-neutral-200 shadow-2xl overflow-hidden w-full max-w-md"
-            >
-              <div className="bg-vet-dark p-6 text-white flex justify-between items-center">
-                <h3 className="font-bold font-display text-lg">Escrever Depoimento</h3>
-                <button
-                  onClick={() => setShowTestimonialModal(false)}
-                  className="text-white/80 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
 
-              <form onSubmit={handleAddTestimonial} className="p-6 space-y-4">
-                {testimonialSubmitted ? (
-                  <div className="py-8 text-center space-y-3">
-                    <CheckCircle2 size={36} className="text-emerald-500 mx-auto" />
-                    <h4 className="font-bold text-neutral-800 text-sm">Depoimento Registrado!</h4>
-                    <p className="text-xs text-neutral-500">
-                      Obrigado por nos avaliar! Sua opinião foi enviada para aprovação do moderador e logo estará visível no site.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Seu Nome</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={testimonialForm.name}
-                          onChange={e => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
-                          placeholder="Ex: Mariana Silva"
-                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Nome do Pet</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={testimonialForm.petName}
-                          onChange={e => setTestimonialForm({ ...testimonialForm, petName: e.target.value })}
-                          placeholder="Ex: Oliver"
-                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Espécie do Pet</label>
-                        <select
-                          value={testimonialForm.petSpecies}
-                          onChange={e => setTestimonialForm({ ...testimonialForm, petSpecies: e.target.value as any })}
-                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-white"
-                        >
-                          <option value="Cão">Cão</option>
-                          <option value="Gato">Gato</option>
-                          <option value="Outros">Outros</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Nota (1 a 5 estrelas)</label>
-                        <select
-                          value={testimonialForm.rating}
-                          onChange={e => setTestimonialForm({ ...testimonialForm, rating: Number(e.target.value) })}
-                          className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-white"
-                        >
-                          <option value="5">5 Estrelas (Excelente)</option>
-                          <option value="4">4 Estrelas (Muito Bom)</option>
-                          <option value="3">3 Estrelas (Bom)</option>
-                          <option value="2">2 Estrelas (Regular)</option>
-                          <option value="1">1 Estrela (Insatisfatório)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-1">Seu Comentário</label>
-                      <textarea 
-                        rows={4}
-                        required
-                        value={testimonialForm.content}
-                        onChange={e => setTestimonialForm({ ...testimonialForm, content: e.target.value })}
-                        placeholder="Fale como foi a consulta, o carinho do atendimento e o bem-estar do seu pet..."
-                        className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-vet-light bg-neutral-50"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full bg-vet-dark text-white hover:bg-vet-leaf py-3 rounded-lg text-xs font-bold uppercase transition cursor-pointer"
-                    >
-                      Enviar Depoimento
-                    </button>
-                  </>
-                )}
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

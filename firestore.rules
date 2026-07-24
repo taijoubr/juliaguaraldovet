@@ -122,6 +122,30 @@ service cloud.firestore {
           && (!data.keys().hasAll(['smtpPass']) || (data.smtpPass is string && data.smtpPass.size() <= 200));
     }
 
+    function isValidFinancialItem(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.name is string && data.name.size() <= 200
+          && data.type is string && (data.type == 'service' || data.type == 'medication')
+          && data.price is number
+          && (!data.keys().hasAll(['category']) || (data.category is string && data.category.size() <= 100))
+          && (!data.keys().hasAll(['description']) || (data.description is string && data.description.size() <= 2000))
+          && (!data.keys().hasAll(['dosage']) || (data.dosage is string && data.dosage.size() <= 200))
+          && (!data.keys().hasAll(['stock']) || data.stock is number)
+          && (!data.keys().hasAll(['unit']) || (data.unit is string && data.unit.size() <= 50))
+          && (!data.keys().hasAll(['code']) || (data.code is string && data.code.size() <= 100));
+    }
+
+    function isValidFinancialBudget(data) {
+      return data.id is string && data.id.size() <= 100
+          && data.clientName is string && data.clientName.size() <= 200
+          && data.petName is string && data.petName.size() <= 200
+          && data.date is string && data.date.size() <= 50
+          && data.items is list
+          && data.subtotal is number
+          && data.total is number
+          && data.status is string && (data.status == 'Orçamento' || data.status == 'Pago' || data.status == 'Pendente' || data.status == 'Cancelado');
+    }
+
     // 4. Matches and Collection Rules
 
     // Settings
@@ -177,6 +201,20 @@ service cloud.firestore {
       // Only Admin can update or delete appointments
       allow update: if isValidId(appointmentId) && isAdmin() && isValidAppointment(incoming());
       allow delete: if isValidId(appointmentId) && isAdmin();
+    }
+
+    // Financial Items Catalog
+    match /financialItems/{financialItemId} {
+      allow read: if isAdmin();
+      allow create, update: if isValidId(financialItemId) && isAdmin() && isValidFinancialItem(incoming());
+      allow delete: if isValidId(financialItemId) && isAdmin();
+    }
+
+    // Financial Budgets
+    match /financialBudgets/{financialBudgetId} {
+      allow read: if isAdmin();
+      allow create, update: if isValidId(financialBudgetId) && isAdmin() && isValidFinancialBudget(incoming());
+      allow delete: if isValidId(financialBudgetId) && isAdmin();
     }
 
     // Stats

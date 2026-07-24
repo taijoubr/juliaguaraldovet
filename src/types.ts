@@ -87,6 +87,45 @@ export interface Appointment {
   createdAt: string;
 }
 
+export interface FinancialItem {
+  id: string;
+  name: string;
+  category: 'Serviço' | 'Medicamento' | 'Exame' | 'Procedimento' | 'Insumo' | 'Outros';
+  type: 'service' | 'medication';
+  price: number;
+  description?: string;
+  dosage?: string;
+  stock?: number;
+  unit?: string;
+  code?: string;
+  updatedAt?: string;
+}
+
+export interface BudgetItem {
+  itemId: string;
+  name: string;
+  type: 'service' | 'medication';
+  unitPrice: number;
+  quantity: number;
+  total: number;
+}
+
+export interface FinancialBudget {
+  id: string;
+  appointmentId?: string;
+  clientName: string;
+  petName: string;
+  date: string;
+  items: BudgetItem[];
+  discount: number;
+  subtotal: number;
+  total: number;
+  status: 'Orçamento' | 'Pago' | 'Pendente' | 'Cancelado';
+  paymentMethod?: 'Pix' | 'Dinheiro' | 'Cartão de Crédito' | 'Cartão de Débito' | 'Transferência' | 'Outro';
+  notes?: string;
+  createdAt: string;
+}
+
 export interface SiteStats {
   accesses: number;
   views: number;
@@ -99,5 +138,7 @@ export interface CMSState {
   testimonials: Testimonial[];
   blog: BlogPost[];
   appointments: Appointment[];
+  financialItems: FinancialItem[];
+  financialBudgets: FinancialBudget[];
   stats: SiteStats;
 }
